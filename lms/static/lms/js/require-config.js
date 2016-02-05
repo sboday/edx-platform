@@ -73,6 +73,10 @@
             "URI": "js/vendor/URI.min",
             "string_utils": "js/src/string_utils",
             "utility": "js/src/utility",
+            "modernizr": "edx-pattern-library/js/modernizr-custom",
+            "afontgarde": "edx-pattern-library/js/afontgarde",
+            "edxicons": "edx-pattern-library/js/edx-icons",
+            "draggabilly": "js/vendor/draggabilly",
 
             // Files needed by OVA
             "annotator": "js/vendor/ova/annotator-full",
@@ -200,6 +204,19 @@
             },
             "moment-with-locales": {
                 exports: "moment"
+            },
+            "modernizr": {
+                exports: "Modernizr"
+            },
+            "afontgarde": {
+                exports: "AFontGarde"
+            },
+            "edxicons": {
+                exports: "edxicons"
+            },
+            "draggabilly": {
+                deps: ["jquery"],
+                exports: "Draggabilly"
             }
         }
     });
