@@ -366,6 +366,14 @@ class XModuleMixin(XModuleFields, XBlock):
         return course_metadata_utils.display_name_with_default_escaped(self)
 
     @property
+    def tooltip_content(self):
+        """
+        Return a display name for use if this is the top-level block in a course unit.
+        Return the display name with default unless this block is not visible to students.
+        """
+        return self.display_name_with_default
+
+    @property
     def xblock_kvs(self):
         """
         Retrieves the internal KeyValueStore for this XModule.

@@ -695,3 +695,11 @@ class SplitTestDescriptor(SplitTestFields, SequenceDescriptor, StudioEditableDes
         )
         self.children.append(dest_usage_key)  # pylint: disable=no-member
         self.group_id_to_child[unicode(group.id)] = dest_usage_key
+
+    @property
+    def tooltip_content(self):
+        if self._xmodule is None:
+            return ''
+        if self._xmodule.child is None:
+            return ''
+        return self._xmodule.child.tooltip_content if self._xmodule.child.tooltip_content else ''

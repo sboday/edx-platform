@@ -136,6 +136,84 @@ class SplitTestBase(SharedModuleStoreTestCase):
             self.assertIn(visible, content)
 
 
+class TestSplitTestVertVert(SplitTestBase):
+    """
+    Tests related to xmodule/split_test_module
+    """
+    __test__ = True
+
+    COURSE_NUMBER = 'vert-split-vert'
+
+    ICON_CLASSES = [
+        'seq_problem',
+        'seq_video',
+    ]
+    TOOLTIPS = [
+        ['Condition 0 vertical'],
+        ['Condition 1 vertical'],
+    ]
+    HIDDEN_CONTENT = [
+        ['Condition 0 vertical child'],
+        ['Condition 1 vertical child'],
+    ]
+
+    # Data is html encoded, because it's inactive inside the
+    # sequence until javascript is executed
+    VISIBLE_CONTENT = [
+        ['class=&#34;problems-wrapper'],
+        ['Some HTML for group 1']
+    ]
+
+    def setUp(self):
+        # We define problem compenents that we need but don't explicitly call elsewhere.
+        # pylint: disable=unused-variable
+        super(TestSplitTestVertVert, self).setUp()
+
+        c0_url = self.course.id.make_usage_key("vertical", "split_test_cond0")
+        c1_url = self.course.id.make_usage_key("vertical", "split_test_cond1")
+
+        split_test = ItemFactory.create(
+            parent_location=self.sequential.location,
+            category="split_test",
+            display_name="Split test",
+            user_partition_id='0',
+            group_id_to_child={"0": c0_url, "1": c1_url},
+        )
+
+        # vert <- split_test
+        # split_test cond 0 = vert <- {video, problem}
+        # split_test cond 1 = vert <- {video, html}
+        vert0 = ItemFactory.create(
+            parent_location=split_test.location,
+            category="vertical",
+            display_name="Condition 0 vertical",
+            location=c0_url,
+        )
+
+        vert1 = ItemFactory.create(
+            parent_location=split_test.location,
+            category="vertical",
+            display_name="Condition 1 vertical",
+            location=c1_url,
+        )
+
+        cond0vert = ItemFactory.create(
+            parent_location=vert0.location,
+            category="vertical",
+            display_name="Condition 0 vertical child",
+        )
+        video0 = self._video(cond0vert, 0)
+        problem0 = self._problem(cond0vert, 0)
+
+        cond1vert = ItemFactory.create(
+            parent_location=vert1.location,
+            category="vertical",
+            display_name="Condition 1 vertical child",
+        )
+        video1 = self._video(cond1vert, 1)
+        html1 = self._html(cond1vert, 1)
+
+
 class TestVertSplitTestVert(SplitTestBase):
     """
     Tests related to xmodule/split_test_module
@@ -149,12 +227,12 @@ class TestVertSplitTestVert(SplitTestBase):
         'seq_video',
     ]
     TOOLTIPS = [
-        ['Group 0 Sees This Video', "Group 0 Sees This Problem"],
-        ['Group 1 Sees This Video', 'Group 1 Sees This HTML'],
+        ['Split test vertical'],
+        ['Split test vertical'],
     ]
     HIDDEN_CONTENT = [
-        ['Condition 0 vertical'],
-        ['Condition 1 vertical'],
+        ['Condition 0 Vertical'],
+        ['Condition 1 Vertical'],
     ]
 
     # Data is html encoded, because it's inactive inside the
@@ -168,7 +246,6 @@ class TestVertSplitTestVert(SplitTestBase):
         # We define problem compenents that we need but don't explicitly call elsewhere.
         # pylint: disable=unused-variable
         super(TestVertSplitTestVert, self).setUp()
-
         # vert <- split_test
         # split_test cond 0 = vert <- {video, problem}
         # split_test cond 1 = vert <- {video, html}
@@ -191,8 +268,8 @@ class TestVertSplitTestVert(SplitTestBase):
         cond0vert = ItemFactory.create(
             parent_location=split_test.location,
             category="vertical",
-            display_name="Condition 0 vertical",
-            location=c0_url,
+            display_name="Condition 0 Vertical",
+            location=c0_url
         )
         video0 = self._video(cond0vert, 0)
         problem0 = self._problem(cond0vert, 0)
@@ -200,73 +277,8 @@ class TestVertSplitTestVert(SplitTestBase):
         cond1vert = ItemFactory.create(
             parent_location=split_test.location,
             category="vertical",
-            display_name="Condition 1 vertical",
-            location=c1_url,
-        )
-        video1 = self._video(cond1vert, 1)
-        html1 = self._html(cond1vert, 1)
-
-
-class TestSplitTestVert(SplitTestBase):
-    """
-    Tests related to xmodule/split_test_module
-    """
-    __test__ = True
-
-    COURSE_NUMBER = 'split-vert'
-
-    ICON_CLASSES = [
-        'seq_problem',
-        'seq_video',
-    ]
-    TOOLTIPS = [
-        ['Group 0 Sees This Video', "Group 0 Sees This Problem"],
-        ['Group 1 Sees This Video', 'Group 1 Sees This HTML'],
-    ]
-    HIDDEN_CONTENT = [
-        ['Condition 0 vertical'],
-        ['Condition 1 vertical'],
-    ]
-
-    # Data is html encoded, because it's inactive inside the
-    # sequence until javascript is executed
-    VISIBLE_CONTENT = [
-        ['class=&#34;problems-wrapper'],
-        ['Some HTML for group 1']
-    ]
-
-    def setUp(self):
-        # We define problem compenents that we need but don't explicitly call elsewhere.
-        # pylint: disable=unused-variable
-        super(TestSplitTestVert, self).setUp()
-
-        # split_test cond 0 = vert <- {video, problem}
-        # split_test cond 1 = vert <- {video, html}
-        c0_url = self.course.id.make_usage_key("vertical", "split_test_cond0")
-        c1_url = self.course.id.make_usage_key("vertical", "split_test_cond1")
-
-        split_test = ItemFactory.create(
-            parent_location=self.sequential.location,
-            category="split_test",
-            display_name="Split test",
-            user_partition_id='0',
-            group_id_to_child={"0": c0_url, "1": c1_url},
-        )
-
-        cond0vert = ItemFactory.create(
-            parent_location=split_test.location,
-            category="vertical",
-            display_name="Condition 0 vertical",
-            location=c0_url,
-        )
-        video0 = self._video(cond0vert, 0)
-        problem0 = self._problem(cond0vert, 0)
-
-        cond1vert = ItemFactory.create(
-            parent_location=split_test.location,
-            category="vertical",
-            display_name="Condition 1 vertical",
-            location=c1_url,
+            display_name="Condition 1 Vertical",
+            location=c1_url
         )
         video1 = self._video(cond1vert, 1)
         html1 = self._html(cond1vert, 1)
