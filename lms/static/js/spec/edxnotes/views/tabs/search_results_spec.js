@@ -1,7 +1,7 @@
 define([
     'jquery', 'underscore', 'common/js/spec_helpers/template_helpers', 'common/js/spec_helpers/ajax_helpers',
     'logger', 'js/edxnotes/collections/tabs', 'js/edxnotes/views/tabs/search_results',
-    'js/spec/edxnotes/custom_matchers', 'js/spec/edxnotes/helpers', 'jasmine-jquery'
+    'js/spec/edxnotes/custom_matchers', 'js/spec/edxnotes/helpers'
 ], function(
     $, _, TemplateHelpers, AjaxHelpers, Logger, TabsCollection, SearchResultsView,
     customMatchers, Helpers
@@ -146,7 +146,7 @@ define([
         it('can clear search results if tab is closed', function () {
             var view = getView(this.tabsCollection),
                 requests = AjaxHelpers.requests(this);
-            spyOn(view.searchBox, 'clearInput').andCallThrough();
+            spyOn(view.searchBox, 'clearInput').and.callThrough();
 
             submitForm(view.searchBox, 'test_query');
             Helpers.respondToRequest(requests, responseJson, true);

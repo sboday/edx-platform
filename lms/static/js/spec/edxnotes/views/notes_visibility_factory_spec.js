@@ -1,7 +1,7 @@
 define([
     'jquery', 'underscore', 'annotator_1.2.9', 'common/js/spec_helpers/ajax_helpers',
     'js/edxnotes/views/notes_visibility_factory', 'js/spec/edxnotes/helpers',
-    'js/spec/edxnotes/custom_matchers', 'jasmine-jquery'
+    'js/spec/edxnotes/custom_matchers'
 ], function(
     $, _, Annotator, AjaxHelpers, NotesVisibilityFactory, Helpers, customMatchers
 ) {
@@ -32,7 +32,7 @@ define([
             this.button = $('.action-toggle-notes');
             this.label = this.button.find('.utility-control-label');
             this.toggleMessage = $('.action-toggle-message');
-            spyOn(this.toggleNotes, 'toggleHandler').andCallThrough();
+            spyOn(this.toggleNotes, 'toggleHandler').and.callThrough();
         });
 
         afterEach(function () {
