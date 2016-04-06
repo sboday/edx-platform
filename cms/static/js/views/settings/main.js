@@ -25,7 +25,6 @@ var DetailsView = ValidatingView.extend({
 
     initialize : function(options) {
         options = options || {};
-        this.fileAnchorTemplate = _.template('<a href="<%= fullpath %>"> <i class="icon fa fa-file"></i><%= filename %></a>');
         // fill in fields
         this.$el.find("#course-language").val(this.model.get('language'));
         this.$el.find("#course-organization").val(this.model.get('org'));
@@ -115,7 +114,7 @@ var DetailsView = ValidatingView.extend({
             paceToggleTip.text(gettext('Course pacing cannot be changed once a course has started.'));
         }
 
-        this.licenseView.render()
+        this.licenseView.render();
 
         return this;
     },
@@ -146,7 +145,6 @@ var DetailsView = ValidatingView.extend({
             'minutes': minutes
         }, true));
     },
-
     updateModel: function(event) {
         switch (event.currentTarget.id) {
         case 'course-language':
@@ -322,7 +320,7 @@ var DetailsView = ValidatingView.extend({
     },
 
     handleLicenseChange: function() {
-        this.showNotificationBar()
+        this.showNotificationBar();
         this.model.set("license", this.licenseModel.toString())
     }
 });
