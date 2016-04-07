@@ -72,6 +72,7 @@ from pipeline_mako import render_require_js_path_overrides
     % endif
   % else:
     ## TODO: Update to only bring in RequireJS
+    ## https://openedx.atlassian.net/browse/FEDX-140
     <%static:js group='base_vendor'/>
   % endif
 
