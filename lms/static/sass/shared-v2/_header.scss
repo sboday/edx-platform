@@ -47,8 +47,8 @@
 
       .item {
         display: inline-block;
-        font-size: em(14);
-        font-weight: 600;
+        font-size: font-size(small);
+        font-weight: font-weight(semi-bold);
         text-transform: uppercase;
         letter-spacing: 0 !important;
 

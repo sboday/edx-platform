@@ -3,11 +3,11 @@
   font-size: font-size(small);
   display: inline-block;
   position: absolute;
-  left: 0px;
+  left: 0;
   top: -($baseline*30);
   overflow: hidden;
   background: $white;
-  border-bottom: 1px solid #fcfcfc;
+  border-bottom: 1px solid palette(grayscale, white);
   padding: ($baseline*0.75) ($baseline/2);
 
   &:focus,
