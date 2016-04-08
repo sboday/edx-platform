@@ -70,9 +70,9 @@ var files = [
     {pattern: 'xmodule_js/common_static/js/vendor/moment.min.js', included: false},
     {pattern: 'xmodule_js/common_static/js/vendor/moment-with-locales.min.js', included: false},
     {pattern: 'xmodule_js/common_static/common/js/utils/edx.utils.validate.js', included: false},
-    {pattern: 'xmodule_js/common_static/js/vendor/slick.core.js', included: false},
-    {pattern: 'xmodule_js/common_static/js/vendor/slick.grid.js', included: false},
-    {pattern: 'xmodule_js/common_static/js/vendor/jquery.event.drag-2.2.js', included: false},
+    {pattern: 'xmodule_js/common_static/js/vendor/jquery.event.drag-2.2.js', included: true},
+    {pattern: 'xmodule_js/common_static/js/vendor/slick.core.js', included: true},
+    {pattern: 'xmodule_js/common_static/js/vendor/slick.grid.js', included: true},
     {pattern: 'xmodule_js/common_static/js/libs/jasmine-waituntil.js', included: true},
 
     // Paths to source JavaScript files

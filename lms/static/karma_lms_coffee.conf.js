@@ -54,6 +54,7 @@ var files = [
     {pattern: 'xmodule_js/src/capa/*.js', included: true},
     {pattern: 'xmodule_js/src/video/*.js', included: true},
     {pattern: 'xmodule_js/src/xmodule.js', included: true},
+    {pattern: 'xmodule_js/common_static/js/libs/jasmine-extensions.js', included: true},
 
     // source files
     {pattern: 'coffee/src/**/*.js', included: true, nocache: true},

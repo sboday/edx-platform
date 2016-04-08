@@ -121,9 +121,9 @@ class Env(object):
         REPO_ROOT / 'lms/static/karma_lms_coffee.conf.js',
         # REPO_ROOT / 'cms/static/karma_cms.conf.js',
         # REPO_ROOT / 'cms/static/karma_cms_squire.conf.js',
-        REPO_ROOT / 'common/lib/xmodule/xmodule/js/karma_xmodule.conf.js',
-        REPO_ROOT / 'common/static/karma_common.conf.js',
-        REPO_ROOT / 'common/static/karma_common_requirejs.conf.js',
+        # REPO_ROOT / 'common/lib/xmodule/xmodule/js/karma_xmodule.conf.js',
+        # REPO_ROOT / 'common/static/karma_common.conf.js',
+        # REPO_ROOT / 'common/static/karma_common_requirejs.conf.js',
     ]
 
     JS_TEST_ID_KEYS = [
@@ -131,9 +131,9 @@ class Env(object):
         'lms-coffee',
         # 'cms',
         # 'cms-squire',
-        'xmodule',
-        'common',
-        'common-requirejs'
+        # 'xmodule',
+        # 'common',
+        # 'common-requirejs'
     ]
 
     JS_REPORT_DIR = REPORT_DIR / 'javascript'
