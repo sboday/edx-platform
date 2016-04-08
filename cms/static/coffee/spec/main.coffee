@@ -223,8 +223,11 @@ testFiles = [
   "js/spec/video/transcripts/utils_spec",
   "js/spec/video/transcripts/editor_spec",
   "js/spec/video/transcripts/videolist_spec",
-  "js/spec/video/transcripts/message_manager_spec",
-  "js/spec/video/transcripts/file_uploader_spec",
+  # not including these files including all pending specs as the Firefox intermittently
+  # messes up with xdescribe block and skips a lot of tests
+  # TODO: find the issue with xdescribe on Firefox and include the following pending specs
+  #"js/spec/video/transcripts/message_manager_spec",
+  #"js/spec/video/transcripts/file_uploader_spec",
   "js/spec/models/component_template_spec",
   "js/spec/models/explicit_url_spec",
   "js/spec/models/xblock_info_spec",
