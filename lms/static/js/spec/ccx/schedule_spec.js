@@ -7,7 +7,9 @@ define(['common/js/spec_helpers/ajax_helpers', 'js/ccx/schedule'],
                 loadFixtures("js/fixtures/ccx/schedule.html");
 
                 var scheduleFixture = readFixtures("templates/ccx/schedule.underscore");
-                appendSetFixtures("<div id=\"schedule_template\">" + scheduleFixture + "</div>");
+                appendSetFixtures(
+                    "<script id=\"schedule_template\" type=\"text/template\" >" + scheduleFixture + "</script>"
+                );
                 schedule_template = _.template($('#schedule_template').html());
                 save_url = 'save_ccx';
 
