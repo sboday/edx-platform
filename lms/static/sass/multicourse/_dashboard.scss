@@ -36,10 +36,16 @@
     @include float(right);
     @include margin-left(flex-gutter());
     width: flex-grid(3);
+    border: 1px solid $gray-l4;
+    box-sizing: border-box;
+    padding: 26px;
+    background: $light-gray3;
 
     .title{
       @extend %t-title7;
       @extend %t-weight4;
+      margin-bottom:30px;
+      color: $dark-gray2;
     }
 
     ul{
