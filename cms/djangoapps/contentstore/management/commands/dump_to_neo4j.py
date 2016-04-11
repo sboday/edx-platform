@@ -1,10 +1,13 @@
 import csv
+import logging
 
 from django.core.management.base import BaseCommand
 from xmodule.modulestore.django import modulestore
 from collections import defaultdict
 import gc
 import os
+
+log = logging.getLogger(__name__)
 
 class ModuleStoreSerializer(object):
     """
@@ -22,7 +25,13 @@ class ModuleStoreSerializer(object):
         self.all_courses = modulestore().get_course_summaries()
 
     def dump_to_csv(self):
+        number_of_courses = len(self.all_courses)
         for index, course in enumerate(self.all_courses):
+            log.info(
+                u"dumping course \t\t{}/{}:\t{}".format(
+                    index + 1, number_of_courses, unicode(course.id)
+                )
+            )
             self.dump_course_items_to_csv(course.id)
 
     def dump_course_items_to_csv(self, course_key):
@@ -140,7 +149,6 @@ class ModuleStoreSerializer(object):
         return relationships
 
 
-
 class Command(BaseCommand):
     """
     Generates CSVs to be used with neo4j's csv import tool (this is much
@@ -153,17 +161,21 @@ class Command(BaseCommand):
             action='store',
             dest='neo4j_root',
             default="/tmp/neo4j",
-            help='where to run neo4j command from')
+            help='where to run neo4j command from'
+        )
 
         parser.add_argument('--csv_dir',
             action='store',
             dest='csv_dir',
             default="/tmp/csvs",
-            help='where to dump csv files to')
+            help='where to dump csv files to'
+        )
 
     def handle(self, *args, **options):
         csv_dir = options["csv_dir"]
         neo4j_root = options["neo4j_root"]
+        if not os.path.isdir(csv_dir):
+            os.mkdir(csv_dir)
         module_store_serializer = ModuleStoreSerializer(csv_dir, neo4j_root)
         module_store_serializer.dump_to_csv()
         print("Use the following command to import your csvs into neo4j")
@@ -186,7 +198,7 @@ class Command(BaseCommand):
                 command += node_info
 
         command += " --relationships:PARENT_OF relationships.csv"
-        command += " --into {neo4j_root}/data/coursegraph-demo"
+        command += " --into {neo4j_root}/data/coursegraph"
         command += " --multiline-fields=true"
         command += " --quote=''"
         # command += " --delimiter=TAB"
@@ -194,6 +206,3 @@ class Command(BaseCommand):
         # dangling pointers
         command += " --bad-tolerance=1000000"
         return command.format(neo4j_root=module_store_serializer.neo4j_root)
-
-
-

@@ -1,3 +1,5 @@
+from django.core.management import CommandError, call_command
+
 from xmodule.modulestore.tests.django_utils import SharedModuleStoreTestCase
 from contentstore.management.commands.dump_to_neo4j import ModuleStoreSerializer
 from xmodule.modulestore.tests.factories import CourseFactory, ItemFactory
@@ -9,14 +11,14 @@ import csv
 import ddt
 
 BLOCK_TYPES = [
-    'about',
-    'course',
-    'chapter',
-    'sequential',
-    'vertical',
-    'html',
-    'problem',
-    'video'
+    ('about', 1),
+    ('course', 1),
+    ('chapter', 1),
+    ('sequential', 1),
+    ('vertical', 1),
+    ('html', 1),
+    ('problem', 1),
+    ('video', 2),
 ]
 
 @ddt.ddt
@@ -32,6 +34,7 @@ class TestModuleStoreSerializer(SharedModuleStoreTestCase):
         cls.html = ItemFactory.create(parent=cls.vertical, category='html')
         cls.problem = ItemFactory.create(parent=cls.vertical, category='problem')
         cls.video = ItemFactory.create(parent=cls.vertical, category='video')
+        cls.video2 = ItemFactory.create(parent=cls.vertical, category='video')
 
     def setUp(self):
         self.csv_dir = tempfile.mkdtemp("csv")
@@ -47,7 +50,7 @@ class TestModuleStoreSerializer(SharedModuleStoreTestCase):
         items = modulestore().get_items(self.course.id)
         blocks_by_type = modulestore_serializer.serialize_items(items, self.course.id)
         self.assertItemsEqual(
-            blocks_by_type.keys(),
+            [(block_type, len(blocks)) for (block_type, blocks) in blocks_by_type.iteritems()],
             BLOCK_TYPES
         )
         # one course
@@ -58,24 +61,62 @@ class TestModuleStoreSerializer(SharedModuleStoreTestCase):
         self.assertFalse(serialized_course['self_paced'])
 
     def test_csvs_written(self):
-        mds = ModuleStoreSerializer(self.csv_dir, self.neo4j_root)
-        mds.dump_to_csv()
+        call_command(
+            'dump_to_neo4j', csv_dir=self.csv_dir, neo4j_root=self.neo4j_root
+        )
         self.assertItemsEqual(
             os.listdir(self.csv_dir),
-            [block_type + ".csv" for block_type in BLOCK_TYPES] + ['relationships.csv']
+            [block_type + ".csv" for (block_type, __) in BLOCK_TYPES] + ['relationships.csv']
         )
 
     @ddt.data(*BLOCK_TYPES)
-    def test_course_csv(self, block_type):
-        mds = ModuleStoreSerializer(self.csv_dir, self.neo4j_root)
-        mds.dump_to_csv()
+    @ddt.unpack
+    def test_block_csv(self, block_type, expected_number):
+        """
+        Tests that we only find the expected number of each item in each csv
+        """
+        call_command(
+            'dump_to_neo4j', csv_dir=self.csv_dir, neo4j_root=self.neo4j_root
+        )
         filename = self.csv_dir + "/{block_type}.csv".format(block_type=block_type)
         with open(filename) as block_type_csvfile:
             rows = list(csv.reader(block_type_csvfile))
 
-        self.assertEqual(len(rows), 2)
-
         header = rows[0]
+        # assert the first header is the item's label
         self.assertEqual(header[0], "type:LABEL")
-        body = rows[1]
-        self.assertEqual(body[0], block_type)
+        # assert that the id is appropriately set
+        self.assertIn("location:ID", header)
+
+        # assert this is the expected number of of items
+        body = rows[1:]
+        self.assertEqual(len(body), expected_number)
+
+        # assert that the label is the block type
+        for row in body:
+            self.assertEqual(row[0], block_type)
+
+    def test_relationship_csv(self):
+        """
+        Tests that the relationship csv looks like it is supposed to.
+        """
+        call_command(
+            'dump_to_neo4j', csv_dir=self.csv_dir, neo4j_root=self.neo4j_root
+        )
+        filename = self.csv_dir + "/relationships.csv"
+        with open(filename) as relationships_csvfile:
+            rows = list(csv.reader(relationships_csvfile))
+
+        self.assertEqual(len(rows), 8)
+        header = rows[0]
+        self.assertEqual(header, [':START_ID', ':END_ID'])
+        body = rows[1:]
+        self.assertItemsEqual(body, [
+            [unicode(self.course.location), unicode(self.chapter.location)],
+            [unicode(self.chapter.location), unicode(self.sequential.location)],
+            [unicode(self.sequential.location), unicode(self.vertical.location)],
+            [unicode(self.vertical.location), unicode(self.html.location)],
+            [unicode(self.vertical.location), unicode(self.problem.location)],
+            [unicode(self.vertical.location), unicode(self.video.location)],
+            [unicode(self.vertical.location), unicode(self.video2.location)],
+        ])
