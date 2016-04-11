@@ -55,9 +55,9 @@ class ModuleStoreSerializer(object):
                 ]
                 rows.append(row)
 
-            filename ='{csv_dir}/{block_type}.csv'.format(
+            filename = os.path.abspath('{csv_dir}/{block_type}.csv'.format(
                 csv_dir=self.csv_dir, block_type=block_type
-            )
+            ))
 
             with open(filename, 'a') as csvfile:
                 writer = csv.writer(csvfile)
@@ -68,7 +68,8 @@ class ModuleStoreSerializer(object):
     def dump_relationships_to_csv(self, relationships):
         rows = []
         rows.extend(relationships)
-        with open('{csv_dir}/relationships.csv'.format(csv_dir=self.csv_dir), 'a') as csvfile:
+        filename = os.path.abspath('{csv_dir}/relationships.csv'.format(csv_dir=self.csv_dir))
+        with open(filename, 'a') as csvfile:
             # if this file hasn't been written to yet, add a header
             writer = csv.writer(csvfile)
             if csvfile.tell() == 0:
@@ -172,8 +173,8 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        csv_dir = options["csv_dir"]
-        neo4j_root = options["neo4j_root"]
+        csv_dir = os.path.abspath(options["csv_dir"])
+        neo4j_root = os.path.abspath(options["neo4j_root"])
         if not os.path.isdir(csv_dir):
             os.mkdir(csv_dir)
         module_store_serializer = ModuleStoreSerializer(csv_dir, neo4j_root)
