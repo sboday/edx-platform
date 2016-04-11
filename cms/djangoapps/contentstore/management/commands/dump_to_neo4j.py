@@ -59,9 +59,12 @@ class ModuleStoreSerializer(object):
                 ]
                 rows.append(row)
 
-            filename = os.path.abspath('{csv_dir}/{block_type}.csv'.format(
-                csv_dir=self.csv_dir, block_type=block_type
-            ))
+            filename = os.path.abspath(
+                os.path.join(
+                    self.csv_dir,
+                    "{block_type}.csv".format(block_type=block_type)
+                )
+            )
 
             with open(filename, 'a+') as csvfile:
                 writer = csv.writer(csvfile)
@@ -72,7 +75,7 @@ class ModuleStoreSerializer(object):
     def dump_relationships_to_csv(self, relationships):
         rows = []
         rows.extend(relationships)
-        filename = os.path.abspath('{csv_dir}/relationships.csv'.format(csv_dir=self.csv_dir))
+        filename = os.path.abspath(os.path.join(self.csv_dir, 'relationships.csv'))
         with open(filename, 'a') as csvfile:
             # if this file hasn't been written to yet, add a header
             writer = csv.writer(csvfile)
