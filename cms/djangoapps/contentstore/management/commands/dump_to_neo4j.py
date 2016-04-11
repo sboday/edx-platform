@@ -43,6 +43,10 @@ class ModuleStoreSerializer(object):
         self.dump_relationships_to_csv(relationships)
 
     def dump_blocks_to_csv(self, blocks_by_type):
+        for filename in os.listdir(self.csv_dir):
+            filename = os.path.abspath(os.path.join(self.csv_dir, filename))
+            if filename.endswith(".csv"):
+                os.unlink(filename)
         for block_type, serialized_xblocks in blocks_by_type.iteritems():
             field_names = self.get_field_names_for_type(block_type, serialized_xblocks)
 
@@ -59,7 +63,7 @@ class ModuleStoreSerializer(object):
                 csv_dir=self.csv_dir, block_type=block_type
             ))
 
-            with open(filename, 'a') as csvfile:
+            with open(filename, 'a+') as csvfile:
                 writer = csv.writer(csvfile)
                 if csvfile.tell() == 0:
                     writer.writerow(field_names)

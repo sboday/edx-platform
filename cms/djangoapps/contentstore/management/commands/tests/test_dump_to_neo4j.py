@@ -120,3 +120,28 @@ class TestModuleStoreSerializer(SharedModuleStoreTestCase):
             [unicode(self.vertical.location), unicode(self.video.location)],
             [unicode(self.vertical.location), unicode(self.video2.location)],
         ])
+
+    def test_command_idempotent(self):
+        """
+        Tests that calling the command twice produces the same results
+        """
+        call_command(
+            'dump_to_neo4j', csv_dir=self.csv_dir, neo4j_root=self.neo4j_root
+        )
+        lengths_of_csvs = {}
+        for filename in os.listdir(self.csv_dir):
+            filename = os.path.abspath(os.path.join(self.csv_dir, filename))
+            with open(filename) as f:
+                lengths_of_csvs[filename] = len(f.readlines())
+
+        call_command(
+            'dump_to_neo4j', csv_dir=self.csv_dir, neo4j_root=self.neo4j_root
+        )
+        lengths_of_csvs_2 = {}
+        for filename in os.listdir(self.csv_dir):
+            filename = os.path.abspath(os.path.join(self.csv_dir, filename))
+            with open(filename) as f:
+                lengths_of_csvs_2[filename] = len(f.readlines())
+
+        self.assertEqual(lengths_of_csvs, lengths_of_csvs_2)
+
