@@ -262,7 +262,16 @@ header.global {
     margin-top: ($baseline/2);
     list-style: none;
     @include float(left);
-
+    .tab-nav-item{
+      .tab-nav-link{
+        height: $baseline*1.75;
+        font-size: em(16);
+        color: $gray-l1;
+        &:hover{
+          border-bottom: 4px solid $courseware-border-bottom-color;
+        }
+      }
+    }
     li,
     div {
       display: inline-block;
@@ -337,7 +346,6 @@ header.global {
   }
 }
 
-
 // edX theme: Global Header
 // ====================
 
@@ -348,7 +356,7 @@ header.global-new {
   @include box-sizing(border-box);
   position: relative;
   width: 100%;
-  border-bottom: 4px solid $courseware-border-bottom-color;
+  border-bottom: 1px solid $gray-l1;
   box-shadow: 0 1px 5px 0 $shadow-l1;
   background: $header-bg;
 
@@ -377,6 +385,17 @@ header.global-new {
 
   .nav-global {
     @include float(left);
+    .tab-nav-item{
+      .tab-nav-link{
+        height: 43px;
+        font-size: em(16);
+        color: $gray-l1;
+        &:hover,
+        &:focus{
+          border-bottom: 4px solid $courseware-border-bottom-color;
+        }
+      }
+    }
   }
 
   .nav-account-management {
