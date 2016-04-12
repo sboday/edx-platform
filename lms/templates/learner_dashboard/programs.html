@@ -12,8 +12,14 @@ from openedx.core.djangolib.js_utils import (
 <%static:require_module module_name="js/learner_dashboard/program_list_factory" class_name="ProgramListFactory">
 ProgramListFactory({
     programsData: ${programs | n, dump_js_escaped_json},
-    xseriesUrl: '${xseries_url | n, js_escaped_string}'
+    xseriesUrl: '${xseries_url | n, js_escaped_string}',
 });
+</%static:require_module>
+<%static:require_module module_name="js/learner_dashboard/sidebar_factory" class_name="SideBarFactory">
+SideBarFactory({
+    certificatesData: ${credentials | n, dump_js_escaped_json},
+});
+
 </%static:require_module>
 </%block>
 

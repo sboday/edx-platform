@@ -14,11 +14,6 @@
                 childView: ProgramCardView,
                 collection: new ProgramCollection(options.programsData)
             }).render();
-
-            new SidebarView({
-                el: '.sidebar',
-                context: options
-            }).render();
         };
     });
 }).call(this, define || RequireJS.define);

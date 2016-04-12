@@ -1,0 +1,2 @@
+<%- gettext(display_name) %></a>
+<%- gettext(credential_url) %></a>

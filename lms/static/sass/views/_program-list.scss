@@ -13,6 +13,24 @@
   @include span-columns(12);
 }
 .sidebar{
+    float: right !important;
+    padding: $baseline;
+    margin-left: 2.35765%;
+    margin-bottom: 20px;
+    width: 23.23176%;
+  .xseries-certificates{
+    border: 1px solid $gray-l3;
+    box-sizing: border-box;
+    padding: 20px;
+    background: $gray-l6;
+    margin-bottom: 20px;
+    .title{
+      @extend %t-title6;
+      @extend %t-weight4;
+      margin-bottom:$baseline;
+      color: $gray-l4;
+    }
+  }
   @include outer-container;
   @include span-columns(12);
   .program-advertise{
