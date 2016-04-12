@@ -1,15 +1,9 @@
 """Map new event context values to old top-level field values. Ensures events can be parsed by legacy parsers."""
 
 import json
-import logging
-
-from opaque_keys import InvalidKeyError
-from opaque_keys.edx.keys import UsageKey
 
 from .eventshim import EventShim
 
-
-log = logging.getLogger(__name__)
 
 CONTEXT_FIELDS_TO_INCLUDE = [
     'username',
@@ -76,120 +70,6 @@ def remove_shim_context(event):
                 del context[field]
 
 
-class VideoEventProcessor(object):
-    """
-    Converts new format video events into the legacy video event format.
-
-    Mobile devices cannot actually emit events that exactly match their
-    counterparts emitted by the LMS javascript video player. Instead of
-    attempting to get them to do that, we instead insert a shim here that
-    converts the events they *can* easily emit and converts them into the
-    legacy format.
-
-    TODO: Remove this shim and perform the conversion as part of some batch
-    canonicalization process.
-    """
-
-    NAME_TO_EVENT_TYPE_MAP = {
-        'edx.video.played': 'play_video',
-        'edx.video.paused': 'pause_video',
-        'edx.video.stopped': 'stop_video',
-        'edx.video.loaded': 'load_video',
-        'edx.video.position.changed': 'seek_video',
-        'edx.video.seeked': 'seek_video',
-        'edx.video.transcript.shown': 'show_transcript',
-        'edx.video.transcript.hidden': 'hide_transcript',
-    }
-
-    def __call__(self, event):
-        name = event.get('name')
-        if not name:
-            return
-
-        if name not in self.NAME_TO_EVENT_TYPE_MAP:
-            return
-
-        # Convert edx.video.seeked to edx.video.position.changed because edx.video.seeked was not intended to actually
-        # ever be emitted.
-        if name == "edx.video.seeked":
-            event['name'] = "edx.video.position.changed"
-
-        event['event_type'] = self.NAME_TO_EVENT_TYPE_MAP[name]
-
-        if 'event' not in event:
-            return
-        payload = event['event']
-
-        if 'module_id' in payload:
-            module_id = payload['module_id']
-            try:
-                usage_key = UsageKey.from_string(module_id)
-            except InvalidKeyError:
-                log.warning('Unable to parse module_id "%s"', module_id, exc_info=True)
-            else:
-                payload['id'] = usage_key.html_id()
-
-            del payload['module_id']
-
-        if 'current_time' in payload:
-            payload['currentTime'] = payload.pop('current_time')
-
-        if 'context' in event:
-            context = event['context']
-
-            # Converts seek_type to seek and skip|slide to onSlideSeek|onSkipSeek
-            if 'seek_type' in payload:
-                seek_type = payload['seek_type']
-                if seek_type == 'slide':
-                    payload['type'] = "onSlideSeek"
-                elif seek_type == 'skip':
-                    payload['type'] = "onSkipSeek"
-                del payload['seek_type']
-
-            # Handle seek bug in iOS
-            if self._build_requests_plus_30_for_minus_30(context):
-                if self._user_requested_plus_30_skip(payload):
-                    payload['requested_skip_interval'] = -30
-
-            # For the Android build that isn't distinguishing between skip/seek
-            if 'requested_skip_interval' in payload:
-                if abs(payload['requested_skip_interval']) != 30:
-                    if 'type' in payload:
-                        payload['type'] = 'onSlideSeek'
-
-            if 'open_in_browser_url' in context:
-                page, _sep, _tail = context.pop('open_in_browser_url').rpartition('/')
-                event['page'] = page
-
-        event['event'] = json.dumps(payload)
-
-    @staticmethod
-    def _build_requests_plus_30_for_minus_30(context):
-        """
-        iOS build 1.0.02 has a bug where it returns a +30 second skip when
-        it should be returning -30.
-
-        Returns True if this build
-        """
-
-        app_version = context['application']['version']
-        app_name = context['application']['name']
-        return app_version == "1.0.02" and app_name == "edx.mobileapp.iOS"
-
-    @staticmethod
-    def _user_requested_plus_30_skip(payload):
-        """
-        If the user requested a +30 second skip, return True.
-        """
-
-        if 'requested_skip_interval' in payload and 'type' in payload:
-            interval = payload['requested_skip_interval']
-            action = payload['type']
-            return interval == 30 and action == "onSkipSeek"
-        else:
-            return False
-
-
 class GoogleAnalyticsProcessor(object):
     """Adds course_id as label, and sets nonInteraction property"""
 
@@ -216,7 +96,7 @@ class EventShimProcessor(object):
 
     def __call__(self, event):
         try:
-            event = EventShim.create_shim(event)
+            event = EventShim.create_shim(event.copy())
         except KeyError:
             return
         event.shim()

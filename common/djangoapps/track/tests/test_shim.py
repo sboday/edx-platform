@@ -1,10 +1,15 @@
 """Ensure emitted events contain the fields legacy processors expect to find."""
 
+from collections import namedtuple
+
+import ddt
 from mock import sentinel
 from django.test.utils import override_settings
 
 from openedx.core.lib.tests.assertions.events import assert_events_equal
-from track.tests import EventTrackingTestCase, FROZEN_TIME
+
+from . import EventTrackingTestCase, FROZEN_TIME
+from ..shim import EventShimProcessor
 
 
 LEGACY_SHIM_PROCESSOR = [
@@ -216,3 +221,54 @@ class MultipleShimGoogleAnalyticsProcessorTestCase(EventTrackingTestCase):
             'timestamp': FROZEN_TIME,
         }
         assert_events_equal(expected_event, log_emitted_event)
+
+
+SequenceDDT = namedtuple('SequenceDDT', ['action', 'tab_count', 'current_tab', 'legacy_event_type'])
+
+
+@ddt.ddt
+class EventShimProcessorTestCase(EventTrackingTestCase):
+    """
+    Test EventShimProcessor
+    """
+
+    @ddt.data(
+        SequenceDDT(action='next', tab_count=5, current_tab=3, legacy_event_type='seq_next'),
+        SequenceDDT(action='next', tab_count=5, current_tab=5, legacy_event_type=None),
+        SequenceDDT(action='previous', tab_count=5, current_tab=3, legacy_event_type='seq_prev'),
+        SequenceDDT(action='previous', tab_count=5, current_tab=1, legacy_event_type=None),
+    )
+    def test_sequence_linear_navigation(self, sequence_ddt):
+        event_name = 'edx.ui.lms.sequence.{}_selected'.format(sequence_ddt.action)
+
+        event = {
+            'name': event_name,
+            'event': {
+                'current_tab': sequence_ddt.current_tab,
+                'tab_count': sequence_ddt.tab_count,
+                'id': 'ABCDEFG',
+            }
+        }
+
+        process_event_shim = EventShimProcessor()
+        result = process_event_shim(event)
+        # Original event is not modified
+        self.assertIsNot(result, event)
+        #self.assertNotIn('old', event['event'])
+        #self.assertNotIn('new', event['event'])
+
+        self.assertEqual(result['name'], event['name'])
+
+        # Legacy fields get added when needed
+        if sequence_ddt.action == 'next':
+            offset = 1
+        else:
+            offset = -1
+        if sequence_ddt.legacy_event_type:
+            self.assertEqual(result['event_type'], sequence_ddt.legacy_event_type)
+            self.assertEqual(result['event']['old'], sequence_ddt.current_tab)
+            self.assertEqual(result['event']['new'], sequence_ddt.current_tab + offset)
+        else:
+            self.assertNotIn('event_type', result)
+            self.assertNotIn('old', result['event'])
+            self.assertNotIn('new', result['event'])

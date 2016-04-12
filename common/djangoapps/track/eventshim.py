@@ -2,6 +2,16 @@
 EventShims that create
 """
 
+# pylint: disable=missing-docstring
+
+import json
+import logging
+
+from opaque_keys import InvalidKeyError
+from opaque_keys.edx.keys import UsageKey
+
+log = logging.getLogger(__name__)
+
 
 class DottedPathMapping(object):
     """
@@ -28,9 +38,10 @@ class DottedPathMapping(object):
     def __getitem__(self, key):
         if key in self._match_registry:
             return self._match_registry[key]
-        for prefix in sorted(self._prefix_registry, reverse=True):
-            if key.startswith(prefix):
-                return self._prefix_registry[key]
+        if isinstance(key, basestring):
+            for prefix in sorted(self._prefix_registry, reverse=True):
+                if key.startswith(prefix):
+                    return self._prefix_registry[prefix]
         raise KeyError('Key {} not found in {}'.format(key, type(self)))
 
     def __setitem__(self, key, value):
@@ -57,6 +68,7 @@ class DottedPathMapping(object):
 
     def keys(self):
         return self._match_registry.keys() + self._prefix_registry.keys()
+
 
 class EventShimMeta(type):
     """
@@ -136,7 +148,7 @@ class EventShim(dict):
 
     # factory method
     @classmethod
-    def create_event_shim(cls, event):
+    def create_shim(cls, event):
         """
         Create a shimmed version of the given event.
 
@@ -230,3 +242,120 @@ class PreviousSelectedEventShim(_BaseLinearSequenceEventShim):
 
     def crosses_boundary(self):
         return self.event['current_tab'] == 1
+
+
+class VideoEventShim(EventShim):
+    """
+    Converts new format video events into the legacy video event format.
+
+    Mobile devices cannot actually emit events that exactly match their
+    counterparts emitted by the LMS javascript video player. Instead of
+    attempting to get them to do that, we instead insert a shim here that
+    converts the events they *can* easily emit and converts them into the
+    legacy format.
+
+    TODO: Remove this shim and perform the conversion as part of some batch
+    canonicalization process.
+    """
+    shim_name = 'edx.video.'
+
+    NAME_TO_EVENT_TYPE_MAP = {
+        'edx.video.played': 'play_video',
+        'edx.video.paused': 'pause_video',
+        'edx.video.stopped': 'stop_video',
+        'edx.video.loaded': 'load_video',
+        'edx.video.position.changed': 'seek_video',
+        'edx.video.seeked': 'seek_video',
+        'edx.video.transcript.shown': 'show_transcript',
+        'edx.video.transcript.hidden': 'hide_transcript',
+    }
+
+    @property
+    def is_legacy_event(self):
+        return self.name in self.NAME_TO_EVENT_TYPE_MAP
+
+    @property
+    def legacy_event_type(self):
+        return self.NAME_TO_EVENT_TYPE_MAP[self.name]
+
+    def process_event(self):
+        if self.name not in self.NAME_TO_EVENT_TYPE_MAP:
+            return
+        # import pdb; pdb.set_trace()
+
+        # Convert edx.video.seeked to edx.video.position.changed because edx.video.seeked was not intended to actually
+        # ever be emitted.
+        if self.name == "edx.video.seeked":
+            self['name'] = "edx.video.position.changed"
+
+        if 'event' not in self:
+            return
+        payload = self.event
+
+        if 'module_id' in payload:
+            module_id = payload['module_id']
+            try:
+                usage_key = UsageKey.from_string(module_id)
+            except InvalidKeyError:
+                log.warning('Unable to parse module_id "%s"', module_id, exc_info=True)
+            else:
+                payload['id'] = usage_key.html_id()
+
+            del payload['module_id']
+
+        if 'current_time' in payload:
+            payload['currentTime'] = payload.pop('current_time')
+
+        if 'context' in self:
+            context = self.context
+
+            # Converts seek_type to seek and skip|slide to onSlideSeek|onSkipSeek
+            if 'seek_type' in payload:
+                seek_type = payload['seek_type']
+                if seek_type == 'slide':
+                    payload['type'] = "onSlideSeek"
+                elif seek_type == 'skip':
+                    payload['type'] = "onSkipSeek"
+                del payload['seek_type']
+
+            # Handle seek bug in iOS
+            if self._build_requests_plus_30_for_minus_30(context):
+                if self._user_requested_plus_30_skip(payload):
+                    payload['requested_skip_interval'] = -30
+
+            # For the Android build that isn't distinguishing between skip/seek
+            if 'requested_skip_interval' in payload:
+                if abs(payload['requested_skip_interval']) != 30:
+                    if 'type' in payload:
+                        payload['type'] = 'onSlideSeek'
+
+            if 'open_in_browser_url' in context:
+                self['page'] = context.pop('open_in_browser_url').rpartition('/')[0]
+
+        self['event'] = json.dumps(payload)
+
+    @staticmethod
+    def _build_requests_plus_30_for_minus_30(context):
+        """
+        iOS build 1.0.02 has a bug where it returns a +30 second skip when
+        it should be returning -30.
+
+        Returns True if this build
+        """
+
+        app_version = context['application']['version']
+        app_name = context['application']['name']
+        return app_version == "1.0.02" and app_name == "edx.mobileapp.iOS"
+
+    @staticmethod
+    def _user_requested_plus_30_skip(payload):
+        """
+        If the user requested a +30 second skip, return True.
+        """
+
+        if 'requested_skip_interval' in payload and 'type' in payload:
+            interval = payload['requested_skip_interval']
+            action = payload['type']
+            return interval == 30 and action == "onSkipSeek"
+        else:
+            return False
