@@ -17,16 +17,25 @@
              picturefill
          ) {
             return Backbone.View.extend({
-                className: 'program-card',
+
+                className: 'program-card js-program-card',
+
+                events: {
+                    'click .js-program-card': 'linkClicked'
+                },
+
                 tpl: _.template(programCardTpl),
+
                 initialize: function() {
                     this.render();
                 },
+
                 render: function() {
                     var templated = this.tpl(this.model.toJSON());
                     this.$el.html(templated);
                     this.postRender();
                 },
+
                 postRender: function() {
                     if(navigator.userAgent.indexOf('MSIE') !== -1 ||
                         navigator.appVersion.indexOf('Trident/') > 0){
@@ -36,6 +45,15 @@
                         }.bind(this), 100);
                     }
                 },
+
+                linkClicked: function() {
+                    analytics.track('edx.bi.programs_listing.program_card.clicked', {
+                        category: 'programs_listing',
+                        label: this.model.get('name'),
+                        programId: this.model.get('id')
+                    });
+                }
+
                 // Defer loading the rest of the page to limit FOUC
                 reLoadBannerImage: function() {
                     var $img = this.$('.program_card .banner-image'),
