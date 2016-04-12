@@ -215,23 +215,8 @@
 // +Dashboard - Course Listing
 // ====================
 .dashboard {
-  .my-courses {
-    @include float(left);
-    margin: 0;
-    width: flex-grid(9);
 
-
-    .wrapper-header-courses {
-      border-bottom: 4px solid $border-color-l4;
-      margin-bottom: $baseline;
-
-      .header-courses {
-        @extend %t-title5;
-        @include padding-right($baseline/2);
-      }
-    }
-
-    // CASE: empty dashboard
+  // CASE: empty dashboard
     .empty-dashboard-message {
       border: 3px solid $gray-l4;
       background: $gray-l6;
@@ -263,9 +248,55 @@
           text-decoration: none;
         }
       }
+
+      .find-xseries-programs {
+        @extend %btn-pl-black-base;
+        .action-xseries-icon {
+          @include float(left);
+          display: inline;
+
+          @include margin-right($baseline*0.4);
+          background: url('#{$static-path}/images/icon-sm-xseries-white.png') no-repeat;
+          background-color: transparent;
+
+          width: ($baseline*1.1);
+          height: ($baseline*1.1);
+        }
+        &:hover,
+        &:focus {
+
+          .action-xseries-icon {
+            @include float(left);
+            display: inline;
+
+            @include margin-right($baseline*0.4);
+            background: url('#{$static-path}/images/icon-sm-xseries-black.png') no-repeat;
+            background-color: transparent;
+
+            width: ($baseline*1.1);
+            height: ($baseline*1.1);
+          }
+        }
+      }
     }
 
     // ====================
+
+  .my-courses {
+    @include float(left);
+    margin: 0;
+    width: flex-grid(9);
+
+
+    .wrapper-header-courses {
+      border-bottom: 4px solid $border-color-l4;
+      margin-bottom: $baseline;
+
+      .header-courses {
+        @extend %t-title5;
+        @include padding-right($baseline/2);
+      }
+    }
 
     // UI: course list
     .listing-courses {
