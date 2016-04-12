@@ -1117,6 +1117,9 @@
                     .find('.control-text')
                         .text(gettext('Hide closed captions'));
 
+                // trigger an analytics event
+                this.state.el.trigger('captions:show');
+
                 if (this.subtitlesEl.find('.current').text()) {
                     this.captionDisplayEl
                         .text(this.subtitlesEl.find('.current').text());
@@ -1137,6 +1140,9 @@
                     .removeClass('is-active')
                     .find('.control-text')
                         .text(gettext('Turn on closed captioning'));
+
+                // trigger an analytics event
+                this.state.el.trigger('captions:hide');
             },
 
             updateCaptioningCookie: function(method) {
@@ -1173,7 +1179,7 @@
                     state.el.addClass('closed');
                     text = gettext('Turn on transcripts');
                     if (trigger_event) {
-                        this.state.el.trigger('captions:hide');
+                        this.state.el.trigger('transcript:hide');
                     }
 
                     transcriptControlEl
@@ -1186,7 +1192,7 @@
                     this.scrollCaption();
                     text = gettext('Turn off transcripts');
                     if (trigger_event) {
-                        this.state.el.trigger('captions:show');
+                        this.state.el.trigger('transcript:show');
                     }
 
                     transcriptControlEl

@@ -17,7 +17,8 @@ define('video/09_events_plugin.js', [], function() {
 
         _.bindAll(this, 'onReady', 'onPlay', 'onPause', 'onEnded', 'onSeek',
             'onSpeedChange', 'onShowLanguageMenu', 'onHideLanguageMenu', 'onSkip',
-            'onShowCaptions', 'onHideCaptions', 'destroy');
+            'onShowCaptions', 'onHideCaptions', 'onShowTranscript', 'onHideTranscript',
+            'destroy');
         this.state = state;
         this.options = _.extend({}, options);
         this.state.videoEventsPlugin = this;
@@ -118,7 +119,7 @@ define('video/09_events_plugin.js', [], function() {
             this.log('hide_closed_captions', {current_time: this.getCurrentTime()});
         },
 
-        onShowTransscript: function () {
+        onShowTranscript: function () {
             this.log('show_transcript', {current_time: this.getCurrentTime()});
         },
 
