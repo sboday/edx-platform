@@ -10,8 +10,6 @@ from django.utils.translation import ugettext as _
 import branding
 # app that handles site status messages
 from status.status import get_site_status_msg
-
-from openedx.core.djangoapps.user_api.accounts.image_helpers import get_profile_image_urls_for_user
 %>
 
 ## Provide a hook for themes to inject branding on top.
@@ -28,14 +26,10 @@ from openedx.core.djangoapps.user_api.accounts.image_helpers import get_profile_
 
 <%
 if uses_pattern_library:
-    dropdown_menu_classlist = "left list-inline"
-    dropdown_menu_item_classlist = "dropdown-item item has-block-link"
     main_nav_menu_classlist = "list-inline"
     register_btn_classlist = "btn-neutral"
-    login_btn_classlist = "btn"
+    login_btn_classlist = "btn-brand"
 else:
-    dropdown_menu_classlist = "dropdown-menu"
-    dropdown_menu_item_classlist = ""
     main_nav_menu_classlist = "nav-global"
     register_btn_classlist = "cta cta-register nav-courseware-button"
     login_btn_classlist = "cta cta-login"
@@ -85,114 +79,61 @@ site_status_msg = get_site_status_msg(course_id)
     % if user.is_authenticated():
       % if not course or disable_courseware_header:
         % if not nav_hidden:
-    <nav aria-label="Main" class="nav-main">
-      <ul class="left ${main_nav_menu_classlist}  authenticated">
-        <%block name="navigation_global_links_authenticated">
-          <li class="item nav-global-01">
-            <a href="${marketing_link('HOW_IT_WORKS')}">${_("How it Works")}</a>
-          </li>
-          <li class="item nav-global-02">
-            <a href="${marketing_link('COURSES')}">${_("Find Courses")}</a>
-          </li>
-          <li class="item nav-global-03">
-            <a href="${marketing_link('SCHOOLS')}">${_("Schools & Partners")}</a>
-          </li>
-        </%block>
-      </ul>
-    </nav>
+          <nav aria-label="Main" class="nav-main">
+            <ul class="left ${main_nav_menu_classlist}  authenticated">
+              <%block name="navigation_global_links_authenticated">
+                <li class="item nav-global-01">
+                  <a href="${marketing_link('HOW_IT_WORKS')}">${_("How it Works")}</a>
+                </li>
+                <li class="item nav-global-02">
+                  <a href="${marketing_link('COURSES')}">${_("Find Courses")}</a>
+                </li>
+                <li class="item nav-global-03">
+                  <a href="${marketing_link('SCHOOLS')}">${_("Schools & Partners")}</a>
+                </li>
+              </%block>
+            </ul>
+          </nav>
         % endif
       % endif
 
-    % if uses_pattern_library:
-    <div class="wrapper-user-menu dropdown-menu-container logged-in js-header-user-menu">
-      <a href="${reverse('dashboard')}" class="menu-title">
-        <span class="sr-only">${_("Dashboard for:")}</span>
-        <%
-          username = user.username
-          profile_image_url = get_profile_image_urls_for_user(user)['medium']
-        %>
-        <img class="menu-image" src="${profile_image_url}" alt="">
-        ${username}
-      </a>
-      <button type="button" class="menu-button button-more has-dropdown js-dropdown-button default-icon" aria-haspopup="true" aria-expanded="false" aria-controls="${_("Usermenu")}">
-        <span class="icon-fallback icon-fallback-img">
-          <span class="icon icon-angle-down" aria-hidden="true"></span>
-          <span class="text">${_("Usermenu dropdown")}</span>
-        </span>
-      </button>
-      <ul class="dropdown-menu list-divided is-hidden" id="${_("Usermenu")}" tabindex="-1">
-        <%block name="navigation_dropdown_menu_links" >
-        <%
-        if uses_pattern_library:
-          dropdown_menu_item_classlist = "dropdown-item item has-block-link"
-        else:
-          dropdown_menu_item_classlist = ""
-        %>
-          <li class="${dropdown_menu_item_classlist}"><a href="${reverse('dashboard')}">${_("Dashboard")}</a></li>
-          <li class="${dropdown_menu_item_classlist}"><a href="${reverse('learner_profile', kwargs={'username': user.username})}">${_("Profile")}</a></li>
-          <li class="${dropdown_menu_item_classlist}"><a href="${reverse('account_settings')}">${_("Account")}</a></li>
-        </%block>
-          <li class="${dropdown_menu_item_classlist}"><a href="${reverse('logout')}" role="menuitem">${_("Sign Out")}</a></li>
-      </ul>
-    </div>
-    % else:
-    <ul class="user">
-      <li class="primary">
-        <a href="${reverse('dashboard')}" class="user-link">
-          <span class="sr">${_("Dashboard for:")}</span>
-          <%
-          username = user.username
-          profile_image_url = get_profile_image_urls_for_user(user)['medium']
-          %>
-          <img class="user-image-frame" src="${profile_image_url}" alt="">
-          <div class="label-username">${username}</div>
-        </a>
-      </li>
-      <li class="primary">
-        <a href="#" class="dropdown" aria-haspopup="true" aria-expanded="false"><span class="sr">${_("More options dropdown")}</span> &#9662;</a>
-        <ul class="dropdown-menu" aria-label="More Options" role="menu">
-          ${navigation_dropdown_menu_links()}
-          <li><a href="${reverse('logout')}" role="menuitem">${_("Sign Out")}</a></li>
-        </ul>
-      </li>
-    </ul>
-    % endif
+      <%include file="user_dropdown.html"/>
 
       % if should_display_shopping_cart_func(): # see shoppingcart.context_processor.user_has_cart_context_processor
-    <ul class="user">
-      <li class="primary">
-        <a class="shopping-cart" href="${reverse('shoppingcart.views.show_cart')}">
-          <i class="icon fa fa-shopping-cart" aria-hidden="true"></i> ${_("Shopping Cart")}
-        </a>
-      </li>
-    </ul>
+        <ul class="user">
+          <li class="primary">
+            <a class="shopping-cart" href="${reverse('shoppingcart.views.show_cart')}">
+              <i class="icon fa fa-shopping-cart" aria-hidden="true"></i> ${_("Shopping Cart")}
+            </a>
+          </li>
+        </ul>
       % endif
 
     % else:
-    <nav aria-label="Account" class="nav-account-management">
-      <div class="right nav-courseware">
-        <div class="nav-courseware-01">
-          % if not settings.FEATURES['DISABLE_LOGIN_BUTTON']:
+      <nav aria-label="Account" class="nav-account-management">
+        <div class="right nav-courseware">
+          <div class="nav-courseware-01">
+            % if not settings.FEATURES['DISABLE_LOGIN_BUTTON']:
               % if course and settings.FEATURES.get('RESTRICT_ENROLL_BY_REG_METHOD') and course.enrollment_domain:
-              <a class="${login_btn_classlist}" href="${reverse('course-specific-login', args=[course.id.to_deprecated_string()])}${login_query()}">${_("Sign in")}</a>
+                <a class="${login_btn_classlist}" href="${reverse('course-specific-login', args=[course.id.to_deprecated_string()])}${login_query()}">${_("Sign in")}</a>
               % else:
-              <a class="${login_btn_classlist}" href="/login${login_query()}">${_("Sign in")}</a>
+                <a class="${login_btn_classlist}" href="/login${login_query()}">${_("Sign in")}</a>
               % endif
+            % endif
+          </div>
+          % if not settings.FEATURES['DISABLE_LOGIN_BUTTON']:
+            % if course and settings.FEATURES.get('RESTRICT_ENROLL_BY_REG_METHOD') and course.enrollment_domain:
+              <div class="nav-courseware-02">
+                <a class="${register_btn_classlist}" href="${reverse('course-specific-register', args=[course.id.to_deprecated_string()])}">${_("Register")}</a>
+              </div>
+            % else:
+              <div class="nav-courseware-02">
+                <a class="${register_btn_classlist}" href="/register">${_("Register")}</a>
+              </div>
+            % endif
           % endif
         </div>
-        % if not settings.FEATURES['DISABLE_LOGIN_BUTTON']:
-          % if course and settings.FEATURES.get('RESTRICT_ENROLL_BY_REG_METHOD') and course.enrollment_domain:
-          <div class="nav-courseware-02">
-            <a class="${register_btn_classlist}" href="${reverse('course-specific-register', args=[course.id.to_deprecated_string()])}">${_("Register")}</a>
-          </div>
-          % else:
-          <div class="nav-courseware-02">
-            <a class="${register_btn_classlist}" href="/register">${_("Register")}</a>
-          </div>
-          % endif
-        % endif
-      </div>
-    </nav>
+      </nav>
     % endif
   </div>
 </header>

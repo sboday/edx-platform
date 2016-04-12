@@ -12,22 +12,3 @@ from django.http import HttpResponseNotFound
 def dev_mode(request):
     "Sample static view"
     return render_to_response("dev/dev_mode.html")
-
-
-def dev_show_template(request, template):
-    """
-    Shows the specified template as an HTML page.
-    e.g. /template/ux/reference/container.html shows the template under ux/reference/container.html
-
-    Note: dynamic parameters can also be passed to the page.
-    e.g. /template/ux/reference/container.html?name=Foo
-    """
-    try:
-        context = {
-            "disable_courseware_js": True,
-            "uses_pattern_library": True
-        }
-        context.update(request.GET.dict())
-        return render_to_response(template, context)
-    except TopLevelLookupException:
-        return HttpResponseNotFound("Couldn't find template {tpl}".format(tpl=template))
