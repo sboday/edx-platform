@@ -154,7 +154,7 @@ class EventShim(dict):
 
         If no shim is registered to handle the event, this raises a KeyError.
         """
-        name = event.get('name')
+        name = event.get(u'name')
         return cls._registry[name](event)  # pylint: disable=no-member
 
     # Abstract Properties
@@ -169,15 +169,15 @@ class EventShim(dict):
 
     @property
     def name(self):
-        return self['name']
+        return self[u'name']
 
     @property
     def context(self):
-        return self['context']
+        return self[u'context']
 
     @property
     def event(self):
-        return self['event']
+        return self[u'event']
 
     # Shimming methods
 
@@ -204,8 +204,8 @@ class TabSelectedEventShim(EventShim):
     legacy_event_type = u'seq_goto'
 
     def process_legacy_fields(self):
-        self.event['old'] = self.event['current_tab']
-        self.event['new'] = self.event['target_tab']
+        self.event[u'old'] = self.event[u'current_tab']
+        self.event[u'new'] = self.event[u'target_tab']
 
 
 class _BaseLinearSequenceEventShim(EventShim):
@@ -217,8 +217,8 @@ class _BaseLinearSequenceEventShim(EventShim):
         return not self.crosses_boundary()
 
     def process_legacy_fields(self):
-        self.event['old'] = self.event['current_tab']
-        self.event['new'] = self.event['current_tab'] + self.offset
+        self.event[u'old'] = self.event[u'current_tab']
+        self.event[u'new'] = self.event[u'current_tab'] + self.offset
 
     def crosses_boundary(self):
         raise NotImplementedError
@@ -228,20 +228,20 @@ class NextSelectedEventShim(_BaseLinearSequenceEventShim):
 
     shim_name = u'edx.ui.lms.sequence.next_selected'
     offset = 1
-    legacy_event_type = 'seq_next'
+    legacy_event_type = u'seq_next'
 
     def crosses_boundary(self):
-        return self.event['current_tab'] == self.event['tab_count']
+        return self.event[u'current_tab'] == self.event[u'tab_count']
 
 
 class PreviousSelectedEventShim(_BaseLinearSequenceEventShim):
 
     shim_name = u'edx.ui.lms.sequence.previous_selected'
     offset = -1
-    legacy_event_type = 'seq_prev'
+    legacy_event_type = u'seq_prev'
 
     def crosses_boundary(self):
-        return self.event['current_tab'] == 1
+        return self.event[u'current_tab'] == 1
 
 
 class VideoEventShim(EventShim):
@@ -257,17 +257,17 @@ class VideoEventShim(EventShim):
     TODO: Remove this shim and perform the conversion as part of some batch
     canonicalization process.
     """
-    shim_name = 'edx.video.'
+    shim_name = u'edx.video.'
 
     NAME_TO_EVENT_TYPE_MAP = {
-        'edx.video.played': 'play_video',
-        'edx.video.paused': 'pause_video',
-        'edx.video.stopped': 'stop_video',
-        'edx.video.loaded': 'load_video',
-        'edx.video.position.changed': 'seek_video',
-        'edx.video.seeked': 'seek_video',
-        'edx.video.transcript.shown': 'show_transcript',
-        'edx.video.transcript.hidden': 'hide_transcript',
+        u'edx.video.played': u'play_video',
+        u'edx.video.paused': u'pause_video',
+        u'edx.video.stopped': u'stop_video',
+        u'edx.video.loaded': u'load_video',
+        u'edx.video.position.changed': u'seek_video',
+        u'edx.video.seeked': u'seek_video',
+        u'edx.video.transcript.shown': u'show_transcript',
+        u'edx.video.transcript.hidden': u'hide_transcript',
     }
 
     @property

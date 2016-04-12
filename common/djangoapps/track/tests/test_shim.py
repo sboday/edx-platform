@@ -233,42 +233,55 @@ class EventShimProcessorTestCase(EventTrackingTestCase):
     """
 
     @ddt.data(
-        SequenceDDT(action='next', tab_count=5, current_tab=3, legacy_event_type='seq_next'),
-        SequenceDDT(action='next', tab_count=5, current_tab=5, legacy_event_type=None),
-        SequenceDDT(action='previous', tab_count=5, current_tab=3, legacy_event_type='seq_prev'),
-        SequenceDDT(action='previous', tab_count=5, current_tab=1, legacy_event_type=None),
+        SequenceDDT(action=u'next', tab_count=5, current_tab=3, legacy_event_type=u'seq_next'),
+        SequenceDDT(action=u'next', tab_count=5, current_tab=5, legacy_event_type=None),
+        SequenceDDT(action=u'previous', tab_count=5, current_tab=3, legacy_event_type=u'seq_prev'),
+        SequenceDDT(action=u'previous', tab_count=5, current_tab=1, legacy_event_type=None),
     )
     def test_sequence_linear_navigation(self, sequence_ddt):
-        event_name = 'edx.ui.lms.sequence.{}_selected'.format(sequence_ddt.action)
+        event_name = u'edx.ui.lms.sequence.{}_selected'.format(sequence_ddt.action)
 
         event = {
-            'name': event_name,
-            'event': {
-                'current_tab': sequence_ddt.current_tab,
-                'tab_count': sequence_ddt.tab_count,
-                'id': 'ABCDEFG',
+            u'name': event_name,
+            u'event': {
+                u'current_tab': sequence_ddt.current_tab,
+                u'tab_count': sequence_ddt.tab_count,
+                u'id': u'ABCDEFG',
             }
         }
 
         process_event_shim = EventShimProcessor()
         result = process_event_shim(event)
-        # Original event is not modified
-        self.assertIsNot(result, event)
-        #self.assertNotIn('old', event['event'])
-        #self.assertNotIn('new', event['event'])
-
-        self.assertEqual(result['name'], event['name'])
 
         # Legacy fields get added when needed
-        if sequence_ddt.action == 'next':
+        if sequence_ddt.action == u'next':
             offset = 1
         else:
             offset = -1
         if sequence_ddt.legacy_event_type:
-            self.assertEqual(result['event_type'], sequence_ddt.legacy_event_type)
-            self.assertEqual(result['event']['old'], sequence_ddt.current_tab)
-            self.assertEqual(result['event']['new'], sequence_ddt.current_tab + offset)
+            self.assertEqual(result[u'event_type'], sequence_ddt.legacy_event_type)
+            self.assertEqual(result[u'event'][u'old'], sequence_ddt.current_tab)
+            self.assertEqual(result[u'event'][u'new'], sequence_ddt.current_tab + offset)
         else:
-            self.assertNotIn('event_type', result)
-            self.assertNotIn('old', result['event'])
-            self.assertNotIn('new', result['event'])
+            self.assertNotIn(u'event_type', result)
+            self.assertNotIn(u'old', result[u'event'])
+            self.assertNotIn(u'new', result[u'event'])
+
+    def test_sequence_tab_navigation(self):
+        event_name = u'edx.ui.lms.sequence.tab_selected'
+        event = {
+            u'name': event_name,
+            u'event': {
+                u'current_tab': 2,
+                u'target_tab': 5,
+                u'tab_count': 9,
+                u'id': u'block-v1:abc',
+                u'widget_placement': u'top',
+            }
+        }
+
+        process_event_shim = EventShimProcessor()
+        result = process_event_shim(event)
+        self.assertEqual(result[u'event_type'], u'seq_goto')
+        self.assertEqual(result[u'event'][u'old'], 2)
+        self.assertEqual(result[u'event'][u'new'], 5)
