@@ -10,7 +10,8 @@
     </div>
 </div>
 <div class="xseries-certificates">
-    <p class="title"><%- gettext('XSeries Program Certificates') %>:</p>
-    <div class="certificate-container">
+    <p class="advertise-message"><%- gettext('XSeries Program Certificates') %>:</p>
+    <div>
+        <ul class="certificate-container"></ul>
     </div>
 </div>

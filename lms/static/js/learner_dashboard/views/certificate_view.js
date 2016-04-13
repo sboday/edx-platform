@@ -15,14 +15,13 @@
              certificateTpl
          ) {
             return Backbone.View.extend({
-                className: '',
                 tpl: _.template(certificateTpl),
                 initialize: function() {
                     this.render();
                 },
                 render: function() {
                     var templated = this.tpl(this.model.toJSON());
-                    this.$el.append(templated);
+                    this.$el.html(templated);
                 }
             });
         }

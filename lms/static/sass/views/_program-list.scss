@@ -21,9 +21,11 @@
   .xseries-certificates{
     border: 1px solid $gray-l3;
     box-sizing: border-box;
-    padding: 20px;
+    padding: $baseline;
     background: $gray-l6;
-    margin-top: 20px;
+    margin-top: $baseline;
+    background: url('#{$static-path}/images/xseries-certificate-visual.png') no-repeat 30px 45px;
+    height: 230px;
     .title{
       @extend %t-title6;
       @extend %t-weight4;

@@ -1,2 +1,3 @@
-<a class="copy" href="<%- gettext(credential_url) %>"><%- gettext(display_name) %></a>
-
+<li>
+    <a class="copy" href="<%- gettext(credential_url) %>"><%- gettext(display_name) %></a>
+</li>
