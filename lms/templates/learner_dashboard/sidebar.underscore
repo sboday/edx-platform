@@ -9,5 +9,8 @@
         </a>
     </div
 </div>
-<div class="certificate-container">
+<div class="xseries-certificates">
+    <p class="title">${_("XSeries Program Certificates")}:</p>
+    <div class="certificate-container">
+    </div>
 </div>
