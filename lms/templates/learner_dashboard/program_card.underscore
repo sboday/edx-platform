@@ -1,7 +1,7 @@
 
 <div class="banner-image">
     <a href="<%- marketingUrl %>" class="card-link">
-        <img alt="<%- gettext(name)%>" />
+        <img alt="<%- gettext(name)%>" src="" />
     </a>
 </div>
 <div class="text-section">

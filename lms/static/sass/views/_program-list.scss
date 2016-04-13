@@ -18,19 +18,24 @@
     margin-left: 2.35765%;
     margin-bottom: 20px;
     width: 23.23176%;
-  .xseries-certificates{
+  .certificate-container{
     border: 1px solid $gray-l3;
     box-sizing: border-box;
     padding: $baseline;
     background: $gray-l6;
     margin-top: $baseline;
-    background: url('#{$static-path}/images/xseries-certificate-visual.png') no-repeat 30px 45px;
-    height: 230px;
     .title{
       @extend %t-title6;
       @extend %t-weight4;
       margin-bottom:$baseline;
       color: $gray-l4;
+    }
+    .certificate-image{
+      background: url('#{$static-path}/images/xseries-certificate-visual.png') no-repeat;
+      height: 180px;
+    }
+    .certificate-box{
+      padding-bottom: ($baseline/4);
     }
   }
   @include outer-container;

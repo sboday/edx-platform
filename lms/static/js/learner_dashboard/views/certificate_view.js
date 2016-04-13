@@ -15,6 +15,7 @@
              certificateTpl
          ) {
             return Backbone.View.extend({
+                className: 'certificate-box',
                 tpl: _.template(certificateTpl),
                 initialize: function() {
                     this.render();

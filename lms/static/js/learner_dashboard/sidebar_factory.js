@@ -21,7 +21,7 @@
             }).render();
 
             new CollectionListView({
-                el: '.certificate-container',
+                el: '.certificate',
                 childView: CertificateView,
                 collection: new CertificateCollection(options.certificatesData)
             }).render();
