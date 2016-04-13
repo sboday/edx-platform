@@ -162,7 +162,7 @@ class @Sequence
       if @anyUpdatedProblems new_position
         $.each @updatedProblems[new_position], (problem_id, latest_content) =>
           @content_container
-          .find("[data-problem-id='"+problem_id+"']")
+          .find("[data-problem-id='#{ problem_id }']")
           .data('content', latest_content)
 
       XBlock.initializeBlocks(@content_container, @requestToken)
