@@ -212,11 +212,12 @@
   }
 }
 
-// +Dashboard - Course Listing
-// ====================
-.dashboard {
-
-  // CASE: empty dashboard
+.xseries-epmty-section{
+    @include float(left);
+    @include outer-container;
+    @include span-columns(9);
+}
+// CASE: empty dashboard
     .empty-dashboard-message {
       border: 3px solid $gray-l4;
       background: $gray-l6;
@@ -280,7 +281,9 @@
       }
     }
 
-    // ====================
+// +Dashboard - Course Listing
+// ====================
+.dashboard {
 
   .my-courses {
     @include float(left);
