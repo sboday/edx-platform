@@ -14,7 +14,7 @@
 }
 .sidebar{
     float: right !important;
-    padding: $baseline;
+    //padding: $baseline;
     margin-left: 2.35765%;
     margin-bottom: 20px;
     width: 23.23176%;
@@ -23,7 +23,7 @@
     box-sizing: border-box;
     padding: 20px;
     background: $gray-l6;
-    margin-bottom: 20px;
+    margin-top: 20px;
     .title{
       @extend %t-title6;
       @extend %t-weight4;
