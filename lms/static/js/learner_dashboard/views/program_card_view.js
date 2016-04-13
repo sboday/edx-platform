@@ -52,7 +52,7 @@
                         label: this.model.get('name'),
                         programId: this.model.get('id')
                     });
-                }
+                },
 
                 // Defer loading the rest of the page to limit FOUC
                 reLoadBannerImage: function() {

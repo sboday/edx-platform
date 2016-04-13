@@ -33,7 +33,7 @@
                     } else {
                         /**
                          *  If not rendering remove el because
-                         *  styles are applied to the wrapper
+                         *  styles are applied to it
                          */
                         this.remove();
                     }
