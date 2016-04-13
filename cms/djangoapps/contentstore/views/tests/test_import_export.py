@@ -630,6 +630,20 @@ class ExportTestCase(CourseTestCase):
 
         self.test_export_targz_urlparam()
 
+    def test_export_course_doest_not_exist(self):
+        """
+        Export failure if course is not exist
+        """
+        # For mongo
+        self.url = '/export/org.1/course_1/Run_1'
+        resp = self.client.get_html(self.url)
+        self.assertEquals(resp.status_code, 404)
+
+        # For split
+        self.url = '/export/course-v1:org1+course1+Run1'
+        resp = self.client.get_html(self.url)
+        self.assertEquals(resp.status_code, 404)
+
 
 @override_settings(CONTENTSTORE=TEST_DATA_CONTENTSTORE)
 class TestLibraryImportExport(CourseTestCase):
