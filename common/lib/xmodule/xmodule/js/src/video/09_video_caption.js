@@ -664,7 +664,6 @@
                 });
 
                 this.languageChooserEl.append(menu);
-                // event: video_show_cc_menu, video_hide_cc_menu
 
                 menu.on('click', '.control-lang', function (e) {
                     var el = $(e.currentTarget).parent(),
