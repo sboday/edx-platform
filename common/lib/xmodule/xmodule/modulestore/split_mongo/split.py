@@ -663,7 +663,6 @@ class SplitMongoModuleStore(SplitBulkWriteMixin, ModuleStoreWriteBase):
         super(SplitMongoModuleStore, self).__init__(contentstore, **kwargs)
 
         self.db_connection = MongoConnection(**doc_store_config)
-        self.db = self.db_connection.database
 
         if default_class is not None:
             module_path, __, class_name = default_class.rpartition('.')
@@ -693,25 +692,30 @@ class SplitMongoModuleStore(SplitBulkWriteMixin, ModuleStoreWriteBase):
         """
         Closes any open connections to the underlying databases
         """
-        self.db.connection.close()
+        self.db_connection.close_connections()
 
     def mongo_wire_version(self):
         """
         Returns the wire version for mongo. Only used to unit tests which instrument the connection.
         """
-        return self.db.connection.max_wire_version
+        return self.db_connection.mongo_wire_version
 
-    def _drop_database(self):
+    def _drop_database(self, database=True, collections=True, connections=True):
         """
         A destructive operation to drop the underlying database and close all connections.
         Intended to be used by test code for cleanup.
+
+        If database is True, then this should drop the entire database.
+        Otherwise, if collections is True, then this should drop all of the collections used
+        by this modulestore.
+        Otherwise, the modulestore should remove all data from the collections.
+
+        If connections is True, then close the connection to the database as well.
         """
         # drop the assets
-        super(SplitMongoModuleStore, self)._drop_database()
+        super(SplitMongoModuleStore, self)._drop_database(database, collections, connections)
 
-        connection = self.db.connection
-        connection.drop_database(self.db.name)
-        connection.close()
+        self.db_connection._drop_database(database, collections, connections)  # pylint: disable=protected-access
 
     def cache_items(self, system, base_block_ids, course_key, depth=0, lazy=True):
         """
@@ -775,7 +779,15 @@ class SplitMongoModuleStore(SplitBulkWriteMixin, ModuleStoreWriteBase):
             self._add_cache(course_entry.structure['_id'], runtime)
             self.cache_items(runtime, block_keys, course_entry.course_key, depth, lazy)
 
-        return [runtime.load_item(block_key, course_entry, **kwargs) for block_key in block_keys]
+        blocks = [runtime.load_item(block_key, course_entry, **kwargs) for block_key in block_keys]
+
+        # TODO Once PLAT-1055 is implemented, we can expose the course version
+        # information within the key identifier of the block.  Until then, set
+        # the course_version as a field on each returned block so higher layers
+        # can use it when needed.
+        for block in blocks:
+            block.course_version = course_entry.course_key.version_guid
+        return blocks
 
     def _get_cache(self, course_version_guid):
         """
@@ -2946,10 +2958,11 @@ class SplitMongoModuleStore(SplitBulkWriteMixin, ModuleStoreWriteBase):
         output_fields = dict(jsonfields)
         for field_name, value in output_fields.iteritems():
             if value:
-                field = xblock_class.fields.get(field_name)
-                if field is None:
+                try:
+                    field = xblock_class.fields.get(field_name)
+                except AttributeError:
                     continue
-                elif isinstance(field, Reference):
+                if isinstance(field, Reference):
                     output_fields[field_name] = robust_usage_key(value)
                 elif isinstance(field, ReferenceList):
                     output_fields[field_name] = [robust_usage_key(ele) for ele in value]

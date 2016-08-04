@@ -8,11 +8,11 @@ import os
 from mock import patch
 from nose.plugins.attrib import attr
 from unittest import skipIf
-from ...pages.studio.auto_auth import AutoAuthPage
-from ...pages.studio.overview import CourseOutlinePage
-from ...pages.studio.video.video import VideoComponentPage
-from ...fixtures.course import CourseFixture, XBlockFixtureDesc
-from ..helpers import UniqueCourseTest, is_youtube_available, YouTubeStubConfig
+from common.test.acceptance.pages.studio.auto_auth import AutoAuthPage
+from common.test.acceptance.pages.studio.overview import CourseOutlinePage
+from common.test.acceptance.pages.studio.video.video import VideoComponentPage
+from common.test.acceptance.fixtures.course import CourseFixture, XBlockFixtureDesc
+from common.test.acceptance.tests.helpers import UniqueCourseTest, is_youtube_available, YouTubeStubConfig
 
 
 @skipIf(is_youtube_available() is False, 'YouTube is not available!')
@@ -76,7 +76,7 @@ class CMSVideoBaseTest(UniqueCourseTest):
         # Why 2? One video component is created by default for each test. Please see
         # test_studio_video_module.py:CMSVideoTest._create_course_unit
         # And we are creating second video component here.
-        self.assertTrue(video_xblocks == 2)
+        self.assertEqual(video_xblocks, 2)
 
     def _install_course_fixture(self):
         """
@@ -356,7 +356,6 @@ class CMSVideoA11yTest(CMSVideoBaseTest):
 
         # limit the scope of the audit to the video player only.
         self.outline.a11y_audit.config.set_scope(
-            include=["div.video"],
-            exclude=["a.ui-slider-handle"]
+            include=["div.video"]
         )
         self.outline.a11y_audit.check_for_accessibility_errors()

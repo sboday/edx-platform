@@ -2,7 +2,8 @@
 Test for LMS instructor background task queue management
 """
 from mock import patch, Mock, MagicMock
-from bulk_email.models import CourseEmail, SEND_TO_ALL
+from nose.plugins.attrib import attr
+from bulk_email.models import CourseEmail, SEND_TO_MYSELF, SEND_TO_STAFF, SEND_TO_LEARNERS
 from courseware.tests.factories import UserFactory
 from xmodule.modulestore.exceptions import ItemNotFoundError
 
@@ -82,6 +83,7 @@ class InstructorTaskReportTest(InstructorTaskTestCase):
         self.assertEquals(set(task_ids), set())
 
 
+@attr('shard_3')
 class InstructorTaskModuleSubmitTest(InstructorTaskModuleTestCase):
     """Tests API methods that involve the submission of module-based background tasks."""
 
@@ -172,6 +174,7 @@ class InstructorTaskModuleSubmitTest(InstructorTaskModuleTestCase):
         self._test_submit_task(submit_delete_problem_state_for_all_students)
 
 
+@attr('shard_3')
 @patch('bulk_email.models.html_to_text', Mock(return_value='Mocking CourseEmail.text_message', autospec=True))
 class InstructorTaskCourseSubmitTest(TestReportMixin, InstructorTaskCourseTestCase):
     """Tests API methods that involve the submission of course-based background tasks."""
@@ -185,7 +188,13 @@ class InstructorTaskCourseSubmitTest(TestReportMixin, InstructorTaskCourseTestCa
 
     def _define_course_email(self):
         """Create CourseEmail object for testing."""
-        course_email = CourseEmail.create(self.course.id, self.instructor, SEND_TO_ALL, "Test Subject", "<p>This is a test message</p>")
+        course_email = CourseEmail.create(
+            self.course.id,
+            self.instructor,
+            [SEND_TO_MYSELF, SEND_TO_STAFF, SEND_TO_LEARNERS],
+            "Test Subject",
+            "<p>This is a test message</p>"
+        )
         return course_email.id
 
     def _test_resubmission(self, api_call):

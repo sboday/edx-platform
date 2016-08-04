@@ -63,10 +63,14 @@ class DynamicTemplateLookup(TemplateLookup):
         If still unable to find a template, it will fallback to the default template directories after stripping off
         the prefix path to theme.
         """
+        # try to get template for the given file from microsite
         template = themed_template(uri)
 
+        # if microsite template is not present or request is not in microsite then
+        # let mako find and serve a template
         if not template:
             try:
+                # Try to find themed template, i.e. see if current theme overrides the template
                 template = super(DynamicTemplateLookup, self).get_template(get_template_path_with_theme(uri))
             except TopLevelLookupException:
                 # strip off the prefix path to theme and look in default template dirs

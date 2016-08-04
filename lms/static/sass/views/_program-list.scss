@@ -1,88 +1,80 @@
-// +Imports
-// ====================
-@import '../base/grid-settings';
-@import 'neat/neat'; // lib - Neat
-
-//Patern Library button colors
-$pl-button-border-color: #065683;
-$pl-button-color: #0079bc;
-
-.program-list-wrapper{
-  @include outer-container;
-  padding: $baseline $baseline;
+.program-list-wrapper {
+  padding: $baseline;
 }
 
-.program-cards-container{
-  @include outer-container;
-  @include span-columns(12);
+.program-cards-container {
+  @include span(12);
+
+  @include susy-media($bp-screen-md) {
+    @include span(9);
+  }
 }
-.sidebar{
-  @include outer-container;
-  @include span-columns(12);
-  .program-advertise{
+
+.sidebar {
+  @include span(12);
+  @include float(right);
+  margin-bottom: $baseline;
+
+  @include susy-media($bp-screen-md) {
+    @include span(3);
+  }
+
+  .aside {
     padding: $baseline;
+    margin-bottom: $baseline;
     background-color: $body-bg;
     box-sizing: border-box;
     border: 1px solid $border-color-l3;
+  }
+
+  .program-advertise {
     clear: both;
-    .advertise-message{
-      font-size: em(12);
-      color: $gray-d4;
+
+    .btn-neutral {
+      width: 100%;
+      text-align: center;
+      padding: 10px;
+
+    }
+
+    .advertise-message {
+      font-size: font-size(x-small);
+      color: palette(grayscale, black);
       margin-bottom: $baseline;
     }
-    .ad-link{
-      text-align:center;
-      a{
-        padding: $baseline * 0.5; 
-        border: 1px solid $pl-button-border-color;
-        color: $pl-button-color;
-        font-size: em(16);
-        text-decoration: none;
-        display: block;
-        line-height: 1.2;
-        &:hover,
-        &:focus,
-        &:active{
-          color: $white;
-          background-color: $pl-button-color;
-        }
-        span{
-          @include margin-left($baseline*0.25);
-        }
+  }
+
+  .certificate-container {
+    .hd-6 {
+      color: palette(grayscale, dark);
+      font-weight: font-weight(normal);
+      margin-bottom: $baseline;
+    }
+
+    .certificate-link {
+      padding-top: $baseline;
+      color: palette(primary, base);
+      display: block;
+
+      &:active,
+      &:focus,
+      &:hover {
+        color: $link-hover;
+        text-decoration: underline;
       }
     }
   }
 }
 
+.empty-programs-message {
+  border: 3px solid $gray-l4;
+  background: $gray-l6;
+  padding: ($baseline*2) 0;
+  text-align: center;
+  margin-bottom: 20px;
 
-
-@include media($bp-medium) {
-  .program-cards-container{
-    @include span-columns(8);
-  }
-  .sidebar{
-    @include span-columns(8);
-  }
-}
-
-
-
-@include media($bp-large) {
-  .program-cards-container{
-    @include span-columns(9);
-  }
-  .sidebar{
-    @include omega(n);
-    @include span-columns(3);
-  }
-}
-
-@include media($bp-huge) {
-  .program-cards-container{
-    @include span-columns(9);
-  }
-  .sidebar{
-    @include omega(n);
-    @include span-columns(3);
+  .hd-3 {
+    color: $black;
+    margin-bottom: $baseline;
   }
 }

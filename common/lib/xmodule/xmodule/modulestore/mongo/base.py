@@ -611,17 +611,32 @@ class MongoModuleStore(ModuleStoreDraftAndPublished, ModuleStoreWriteBase, Mongo
         self.database.connection._ensure_connected()
         return self.database.connection.max_wire_version
 
-    def _drop_database(self):
+    def _drop_database(self, database=True, collections=True, connections=True):
         """
         A destructive operation to drop the underlying database and close all connections.
         Intended to be used by test code for cleanup.
+
+        If database is True, then this should drop the entire database.
+        Otherwise, if collections is True, then this should drop all of the collections used
+        by this modulestore.
+        Otherwise, the modulestore should remove all data from the collections.
+
+        If connections is True, then close the connection to the database as well.
         """
         # drop the assets
-        super(MongoModuleStore, self)._drop_database()
+        super(MongoModuleStore, self)._drop_database(database, collections, connections)
 
         connection = self.collection.database.connection
-        connection.drop_database(self.collection.database.proxied_object)
-        connection.close()
+
+        if database:
+            connection.drop_database(self.collection.database.proxied_object)
+        elif collections:
+            self.collection.drop()
+        else:
+            self.collection.remove({})
+
+        if connections:
+            connection.close()
 
     @autoretry_read()
     def fill_in_run(self, course_key):
@@ -938,7 +953,14 @@ class MongoModuleStore(ModuleStoreDraftAndPublished, ModuleStoreWriteBase, Mongo
             system.module_data.update(data_cache)
             system.cached_metadata.update(cached_metadata)
 
-        return system.load_item(location, for_parent=for_parent)
+        item = system.load_item(location, for_parent=for_parent)
+
+        # TODO Once PLAT-1055 is implemented, we can remove the following line
+        # of code. Until then, set the course_version field on the block to be
+        # consistent with the Split modulestore. Since Mongo modulestore doesn't
+        # maintain course versions set it to None.
+        item.course_version = None
+        return item
 
     def _load_items(self, course_key, items, depth=0, using_descriptor_system=None, for_parent=None):
         """
@@ -1073,6 +1095,11 @@ class MongoModuleStore(ModuleStoreDraftAndPublished, ModuleStoreWriteBase, Mongo
         Get the course with the given courseid (org/course/run)
         """
         assert isinstance(course_key, CourseKey)
+
+        if not course_key.deprecated:  # split course_key
+            # The supplied CourseKey is of the wrong type, so it can't possibly be stored in this modulestore.
+            raise ItemNotFoundError(course_key)
+
         course_key = self.fill_in_run(course_key)
         location = course_key.make_usage_key('course', course_key.run)
         try:

@@ -22,7 +22,6 @@
         "domReady": "2.0.1",
         "draggabilly": "1.2.4",
         // "history": "1.8b2",
-        "jquery": "1.7.2",
         // "jquery.ajaxQueue": "unknown",
         // "jquery.ajax-retry": "unknown",
         "jquery.colorhelpers": "1.1",
@@ -108,11 +107,7 @@
         // "vjs.youtube": "unknown"
     },
     "devDependencies": {
-        // "jasmine": "unknown",
-        "jasmine.async": "0.1.0",
         "jasmine-imagediff": "1.0.3",
-        "jasmine-jquery": "1.5.1",
-        "jasmine-stealth": "0.0.12",
         // "jquery.simulate": "unknown",
         // "mock-ajax": "unknown",
         "sinon": "1.17.0"

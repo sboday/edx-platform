@@ -3,12 +3,13 @@ Module implementing `xblock.runtime.Runtime` functionality for the LMS
 """
 import re
 
-from django.core.urlresolvers import reverse
 from django.conf import settings
+from django.core.urlresolvers import reverse
 
 from badges.service import BadgingService
 from badges.utils import badges_enabled
 from openedx.core.djangoapps.user_api.course_tag import api as user_course_tag_api
+from openedx.core.lib.xblock_utils import xblock_local_resource_url
 from request_cache.middleware import RequestCache
 import xblock.reference.plugins
 from xmodule.library_tools import LibraryToolsService
@@ -126,11 +127,7 @@ def local_resource_url(block, uri):
     """
     local_resource_url for Studio
     """
-    path = reverse('xblock_resource_url', kwargs={
-        'block_type': block.scope_ids.block_type,
-        'uri': uri,
-    })
-    return '//{}{}'.format(settings.SITE_NAME, path)
+    return xblock_local_resource_url(block, uri)
 
 
 class LmsPartitionService(PartitionService):
@@ -284,4 +281,10 @@ class LmsModuleSystem(ModuleSystem):  # pylint: disable=abstract-method
         if block.scope_ids.block_type in config.disabled_blocks.split():
             return []
 
-        return super(LmsModuleSystem, self).applicable_aside_types()
+        # TODO: aside_type != 'acid_aside' check should be removed once AcidBlock is only installed during tests
+        # (see https://openedx.atlassian.net/browse/TE-811)
+        return [
+            aside_type
+            for aside_type in super(LmsModuleSystem, self).applicable_aside_types(block)
+            if aside_type != 'acid_aside'
+        ]

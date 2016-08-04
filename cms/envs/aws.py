@@ -87,6 +87,21 @@ CELERY_QUEUES = {
     DEFAULT_PRIORITY_QUEUE: {}
 }
 
+# Setup alternate queues, to allow access to cross-process workers
+ALTERNATE_QUEUE_ENVS = os.environ.get('ALTERNATE_WORKER_QUEUES', '').split()
+ALTERNATE_QUEUES = [
+    DEFAULT_PRIORITY_QUEUE.replace(QUEUE_VARIANT, alternate + '.')
+    for alternate in ALTERNATE_QUEUE_ENVS
+]
+CELERY_QUEUES.update(
+    {
+        alternate: {}
+        for alternate in ALTERNATE_QUEUES
+        if alternate not in CELERY_QUEUES.keys()
+    }
+)
+CELERY_ROUTES = "{}celery.Router".format(QUEUE_VARIANT)
+
 ############# NON-SECURE ENV CONFIG ##############################
 # Things like server locations, ports, etc.
 with open(CONFIG_ROOT / CONFIG_PREFIX + "env.json") as env_file:
@@ -123,6 +138,7 @@ EMAIL_PORT = ENV_TOKENS.get('EMAIL_PORT', EMAIL_PORT)
 EMAIL_USE_TLS = ENV_TOKENS.get('EMAIL_USE_TLS', EMAIL_USE_TLS)
 
 LMS_BASE = ENV_TOKENS.get('LMS_BASE')
+LMS_ROOT_URL = ENV_TOKENS.get('LMS_ROOT_URL')
 # Note that FEATURES['PREVIEW_LMS_BASE'] gets read in from the environment file.
 
 SITE_NAME = ENV_TOKENS['SITE_NAME']
@@ -168,6 +184,12 @@ if ENV_TOKENS.get('SESSION_COOKIE_NAME', None):
 EDXMKTG_LOGGED_IN_COOKIE_NAME = ENV_TOKENS.get('EDXMKTG_LOGGED_IN_COOKIE_NAME', EDXMKTG_LOGGED_IN_COOKIE_NAME)
 EDXMKTG_USER_INFO_COOKIE_NAME = ENV_TOKENS.get('EDXMKTG_USER_INFO_COOKIE_NAME', EDXMKTG_USER_INFO_COOKIE_NAME)
 
+# Determines whether the CSRF token can be transported on
+# unencrypted channels. It is set to False here for backward compatibility,
+# but it is highly recommended that this is True for environments accessed
+# by end users.
+CSRF_COOKIE_SECURE = ENV_TOKENS.get('CSRF_COOKIE_SECURE', False)
+
 #Email overrides
 DEFAULT_FROM_EMAIL = ENV_TOKENS.get('DEFAULT_FROM_EMAIL', DEFAULT_FROM_EMAIL)
 DEFAULT_FEEDBACK_EMAIL = ENV_TOKENS.get('DEFAULT_FEEDBACK_EMAIL', DEFAULT_FEEDBACK_EMAIL)
@@ -188,10 +210,13 @@ COURSES_WITH_UNSAFE_CODE = ENV_TOKENS.get("COURSES_WITH_UNSAFE_CODE", [])
 
 ASSET_IGNORE_REGEX = ENV_TOKENS.get('ASSET_IGNORE_REGEX', ASSET_IGNORE_REGEX)
 
-# Theme overrides
-THEME_NAME = ENV_TOKENS.get('THEME_NAME', None)
-COMPREHENSIVE_THEME_DIR = path(ENV_TOKENS.get('COMPREHENSIVE_THEME_DIR', COMPREHENSIVE_THEME_DIR))
-THEME_CACHE_TIMEOUT = ENV_TOKENS.get('THEME_CACHE_TIMEOUT', THEME_CACHE_TIMEOUT)
+# following setting is for backward compatibility
+if ENV_TOKENS.get('COMPREHENSIVE_THEME_DIR', None):
+    COMPREHENSIVE_THEME_DIR = ENV_TOKENS.get('COMPREHENSIVE_THEME_DIR')
+
+COMPREHENSIVE_THEME_DIRS = ENV_TOKENS.get('COMPREHENSIVE_THEME_DIRS', COMPREHENSIVE_THEME_DIRS) or []
+DEFAULT_SITE_THEME = ENV_TOKENS.get('DEFAULT_SITE_THEME', DEFAULT_SITE_THEME)
+ENABLE_COMPREHENSIVE_THEMING = ENV_TOKENS.get('ENABLE_COMPREHENSIVE_THEMING', ENABLE_COMPREHENSIVE_THEMING)
 
 #Timezone overrides
 TIME_ZONE = ENV_TOKENS.get('TIME_ZONE', TIME_ZONE)
@@ -261,6 +286,9 @@ if 'DJFS' in AUTH_TOKENS and AUTH_TOKENS['DJFS'] is not None:
 EMAIL_HOST_USER = AUTH_TOKENS.get('EMAIL_HOST_USER', EMAIL_HOST_USER)
 EMAIL_HOST_PASSWORD = AUTH_TOKENS.get('EMAIL_HOST_PASSWORD', EMAIL_HOST_PASSWORD)
 
+AWS_SES_REGION_NAME = ENV_TOKENS.get('AWS_SES_REGION_NAME', 'us-east-1')
+AWS_SES_REGION_ENDPOINT = ENV_TOKENS.get('AWS_SES_REGION_ENDPOINT', 'email.us-east-1.amazonaws.com')
+
 # Note that this is the Studio key for Segment. There is a separate key for the LMS.
 CMS_SEGMENT_KEY = AUTH_TOKENS.get('SEGMENT_KEY')
 
@@ -286,6 +314,20 @@ else:
     DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
 
 DATABASES = AUTH_TOKENS['DATABASES']
+
+# The normal database user does not have enough permissions to run migrations.
+# Migrations are run with separate credentials, given as DB_MIGRATION_*
+# environment variables
+for name, database in DATABASES.items():
+    if name != 'read_replica':
+        database.update({
+            'ENGINE': os.environ.get('DB_MIGRATION_ENGINE', database['ENGINE']),
+            'USER': os.environ.get('DB_MIGRATION_USER', database['USER']),
+            'PASSWORD': os.environ.get('DB_MIGRATION_PASS', database['PASSWORD']),
+            'NAME': os.environ.get('DB_MIGRATION_NAME', database['NAME']),
+            'HOST': os.environ.get('DB_MIGRATION_HOST', database['HOST']),
+            'PORT': os.environ.get('DB_MIGRATION_PORT', database['PORT']),
+        })
 
 MODULESTORE = convert_module_store_setting_if_needed(AUTH_TOKENS.get('MODULESTORE', MODULESTORE))
 
@@ -354,9 +396,6 @@ ADVANCED_SECURITY_CONFIG = ENV_TOKENS.get('ADVANCED_SECURITY_CONFIG', {})
 ################ ADVANCED COMPONENT/PROBLEM TYPES ###############
 
 ADVANCED_PROBLEM_TYPES = ENV_TOKENS.get('ADVANCED_PROBLEM_TYPES', ADVANCED_PROBLEM_TYPES)
-DEPRECATED_ADVANCED_COMPONENT_TYPES = ENV_TOKENS.get(
-    'DEPRECATED_ADVANCED_COMPONENT_TYPES', DEPRECATED_ADVANCED_COMPONENT_TYPES
-)
 
 ################ VIDEO UPLOAD PIPELINE ###############
 
@@ -404,9 +443,15 @@ MICROSITE_DATABASE_TEMPLATE_CACHE_TTL = ENV_TOKENS.get(
 # OpenID Connect issuer ID. Normally the URL of the authentication endpoint.
 OAUTH_OIDC_ISSUER = ENV_TOKENS['OAUTH_OIDC_ISSUER']
 
+#### JWT configuration ####
+JWT_AUTH.update(ENV_TOKENS.get('JWT_AUTH', {}))
+
 ######################## CUSTOM COURSES for EDX CONNECTOR ######################
 if FEATURES.get('CUSTOM_COURSES_EDX'):
     INSTALLED_APPS += ('openedx.core.djangoapps.ccxcon',)
 
 # Partner support link for CMS footer
 PARTNER_SUPPORT_EMAIL = ENV_TOKENS.get('PARTNER_SUPPORT_EMAIL', PARTNER_SUPPORT_EMAIL)
+
+# Affiliate cookie tracking
+AFFILIATE_COOKIE_NAME = ENV_TOKENS.get('AFFILIATE_COOKIE_NAME', AFFILIATE_COOKIE_NAME)

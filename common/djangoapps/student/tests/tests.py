@@ -11,6 +11,7 @@ from urlparse import urljoin
 import pytz
 from markupsafe import escape
 from mock import Mock, patch
+from nose.plugins.attrib import attr
 from opaque_keys.edx.locations import SlashSeparatedCourseKey
 from pyquery import PyQuery as pq
 
@@ -23,7 +24,7 @@ from django.test.client import Client
 from course_modes.models import CourseMode
 from student.models import (
     anonymous_id_for_user, user_by_anonymous_id, CourseEnrollment,
-    unique_id_for_user, LinkedInAddToProfileConfiguration
+    unique_id_for_user, LinkedInAddToProfileConfiguration, UserAttribute
 )
 from student.views import (
     process_survey_link,
@@ -111,22 +112,6 @@ class CourseEndingTest(TestCase):
                 'survey_url': survey_url,
                 'grade': '67',
                 'mode': 'honor',
-                'linked_in_url': None,
-                'can_unenroll': False,
-            }
-        )
-
-        cert_status = {'status': 'regenerating', 'grade': '67', 'mode': 'verified'}
-        self.assertEqual(
-            _cert_info(user, course, cert_status, course_mode),
-            {
-                'status': 'generating',
-                'show_disabled_download_button': True,
-                'show_download_url': False,
-                'show_survey_button': True,
-                'survey_url': survey_url,
-                'grade': '67',
-                'mode': 'verified',
                 'linked_in_url': None,
                 'can_unenroll': False,
             }
@@ -312,7 +297,7 @@ class DashboardTest(ModuleStoreTestCase):
         self.assertIsNone(course_mode_info['days_for_upsell'])
 
     @unittest.skipUnless(settings.ROOT_URLCONF == 'lms.urls', 'Test only valid in lms')
-    @patch('courseware.views.log.warning')
+    @patch('courseware.views.index.log.warning')
     @patch.dict('django.conf.settings.FEATURES', {'ENABLE_PAID_COURSE_REGISTRATION': True})
     def test_blocked_course_scenario(self, log_warning):
 
@@ -350,7 +335,7 @@ class DashboardTest(ModuleStoreTestCase):
         response = self.client.get(redeem_url)
         self.assertEquals(response.status_code, 200)
         # check button text
-        self.assertTrue('Activate Course Enrollment' in response.content)
+        self.assertIn('Activate Course Enrollment', response.content)
 
         #now activate the user by enrolling him/her to the course
         response = self.client.post(redeem_url)
@@ -363,7 +348,10 @@ class DashboardTest(ModuleStoreTestCase):
         # Direct link to course redirect to user dashboard
         self.client.get(reverse('courseware', kwargs={"course_id": self.course.id.to_deprecated_string()}))
         log_warning.assert_called_with(
-            u'User %s cannot access the course %s because payment has not yet been received', self.user, self.course.id.to_deprecated_string())
+            u'User %s cannot access the course %s because payment has not yet been received',
+            self.user,
+            unicode(self.course.id),
+        )
 
         # Now re-validating the invoice
         invoice = shoppingcart.models.Invoice.objects.get(id=sale_invoice_1.id)
@@ -499,8 +487,8 @@ class DashboardTest(ModuleStoreTestCase):
         self.client.login(username="jack", password="test")
         response = self.client.get(reverse("dashboard"))
 
-        # "Find courses" is shown in the side panel
-        self.assertContains(response, "Find courses")
+        # "Explore courses" is shown in the side panel
+        self.assertContains(response, "Explore courses")
 
         # But other links are hidden in the navigation
         self.assertNotContains(response, "How it Works")
@@ -901,7 +889,8 @@ class AnonymousLookupTable(ModuleStoreTestCase):
         self.assertEqual(anonymous_id, anonymous_id_for_user(self.user, course2.id, save=False))
 
 
-# TODO: Clean up these tests so that they use the ProgramsDataMixin.
+# TODO: Clean up these tests so that they use program factories and don't mention XSeries!
+@attr('shard_3')
 @unittest.skipUnless(settings.ROOT_URLCONF == 'lms.urls', 'Test only valid in lms')
 @ddt.ddt
 class DashboardTestXSeriesPrograms(ModuleStoreTestCase, ProgramsApiConfigMixin):
@@ -918,8 +907,7 @@ class DashboardTestXSeriesPrograms(ModuleStoreTestCase, ProgramsApiConfigMixin):
         self.course_2 = CourseFactory.create()
         self.course_3 = CourseFactory.create()
         self.program_name = 'Testing Program'
-        self.category = 'xseries'
-        self.display_category = 'XSeries'
+        self.category = 'XSeries'
 
         CourseModeFactory.create(
             course_id=self.course_1.id,
@@ -939,7 +927,6 @@ class DashboardTestXSeriesPrograms(ModuleStoreTestCase, ProgramsApiConfigMixin):
             programs[unicode(course)] = [{
                 'id': _id,
                 'category': self.category,
-                'display_category': self.display_category,
                 'organization': {'display_name': 'Test Organization 1', 'key': 'edX'},
                 'marketing_slug': 'fake-marketing-slug-xseries-1',
                 'status': program_status,
@@ -982,7 +969,6 @@ class DashboardTestXSeriesPrograms(ModuleStoreTestCase, ProgramsApiConfigMixin):
                 u'edx/demox/Run_1': [{
                     'id': 0,
                     'category': self.category,
-                    'display_category': self.display_category,
                     'organization': {'display_name': 'Test Organization 1', 'key': 'edX'},
                     'marketing_slug': marketing_slug,
                     'status': program_status,
@@ -1003,8 +989,7 @@ class DashboardTestXSeriesPrograms(ModuleStoreTestCase, ProgramsApiConfigMixin):
                 self.assertEqual(
                     {
                         u'edx/demox/Run_1': {
-                            'category': 'xseries',
-                            'display_category': 'XSeries',
+                            'category': self.category,
                             'course_program_list': [{
                                 'program_id': 0,
                                 'course_count': len(course_codes),
@@ -1163,8 +1148,37 @@ class DashboardTestXSeriesPrograms(ModuleStoreTestCase, ProgramsApiConfigMixin):
         """
         self.assertContains(response, 'label-xseries-association', count)
         self.assertContains(response, 'btn xseries-', count)
-        self.assertContains(response, 'XSeries Program Course', count)
-        self.assertContains(response, 'XSeries Program: Interested in more courses in this subject?', count)
+
+        self.assertContains(response, '{category} Program Course'.format(category=self.category), count)
+        self.assertContains(
+            response,
+            '{category} Program: Interested in more courses in this subject?'.format(category=self.category),
+            count
+        )
+        self.assertContains(response, 'View {category} Details'.format(category=self.category), count)
+
         self.assertContains(response, 'This course is 1 of 3 courses in the', count)
-        self.assertContains(response, self.program_name, count)
-        self.assertContains(response, 'View XSeries Details', count)
+        self.assertContains(response, self.program_name, count * 2)
+
+
+class UserAttributeTests(TestCase):
+    """Tests for the UserAttribute model."""
+
+    def setUp(self):
+        super(UserAttributeTests, self).setUp()
+        self.user = UserFactory()
+        self.name = 'test'
+        self.value = 'test-value'
+
+    def test_get_set_attribute(self):
+        self.assertIsNone(UserAttribute.get_user_attribute(self.user, self.name))
+        UserAttribute.set_user_attribute(self.user, self.name, self.value)
+        self.assertEqual(UserAttribute.get_user_attribute(self.user, self.name), self.value)
+        new_value = 'new_value'
+        UserAttribute.set_user_attribute(self.user, self.name, new_value)
+        self.assertEqual(UserAttribute.get_user_attribute(self.user, self.name), new_value)
+
+    def test_unicode(self):
+        UserAttribute.set_user_attribute(self.user, self.name, self.value)
+        for field in (self.name, self.value, self.user.username):
+            self.assertIn(field, unicode(UserAttribute.objects.get(user=self.user)))

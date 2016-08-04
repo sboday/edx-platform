@@ -7,11 +7,11 @@ import ddt
 from django.conf import settings
 from django.core.cache import cache
 from django.core.urlresolvers import reverse
-from django.test import TestCase
 from django.test.client import Client
 from django.test.utils import override_settings
 from nose.plugins.attrib import attr
 from opaque_keys.edx.locator import CourseLocator
+from openedx.core.djangolib.testing.utils import CacheIsolationTestCase
 
 from certificates.api import get_certificate_url
 from certificates.models import (
@@ -38,7 +38,7 @@ FEATURES_WITH_CUSTOM_CERTS_ENABLED.update(FEATURES_WITH_CERTS_ENABLED)
 
 @attr('shard_1')
 @ddt.ddt
-class UpdateExampleCertificateViewTest(TestCase):
+class UpdateExampleCertificateViewTest(CacheIsolationTestCase):
     """Tests for the XQueue callback that updates example certificates. """
 
     COURSE_KEY = CourseLocator(org='test', course='test', run='test')
@@ -47,6 +47,8 @@ class UpdateExampleCertificateViewTest(TestCase):
     TEMPLATE = 'test.pdf'
     DOWNLOAD_URL = 'http://www.example.com'
     ERROR_REASON = 'Kaboom!'
+
+    ENABLED_CACHES = ['default']
 
     def setUp(self):
         super(UpdateExampleCertificateViewTest, self).setUp()
@@ -268,7 +270,7 @@ class MicrositeCertificatesViewsTests(ModuleStoreTestCase):
                 "logo_url": "http://www.edx.org"
             },
             "microsites": {
-                "testmicrosite": {
+                "test-site": {
                     "accomplishment_class_append": "accomplishment-certificate",
                     "platform_name": "platform_microsite",
                     "company_about_url": "http://www.microsite.org/about-us",
@@ -298,7 +300,7 @@ class MicrositeCertificatesViewsTests(ModuleStoreTestCase):
         self.assertIn('platform_microsite', response.content)
 
         # logo url is taken from microsite configuration setting
-        self.assertIn('http://test_microsite.localhost', response.content)
+        self.assertIn('http://test_site.localhost', response.content)
         self.assertIn('This is special microsite aware company_about_description content', response.content)
         self.assertIn('Microsite title', response.content)
 

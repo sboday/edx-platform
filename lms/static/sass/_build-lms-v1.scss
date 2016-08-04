@@ -18,7 +18,6 @@
 @import 'elements/navigation';
 @import 'elements/pagination';
 @import 'elements/creative-commons';
-@import 'elements/program-card';
 
 // shared - course
 @import 'shared/fields';
@@ -59,11 +58,10 @@
 @import "views/financial-assistance";
 @import 'views/bookmarks';
 @import 'course/auto-cert';
-@import 'views/program-list';
 @import 'views/api-access';
 
 // app - discussion
-@import "discussion/utilities/variables";
+@import "discussion/utilities/variables-v1";
 @import "discussion/mixins";
 @import 'discussion/discussion'; // Process old file after definitions but before everything else, partial is deprecated.
 @import "discussion/elements/actions";

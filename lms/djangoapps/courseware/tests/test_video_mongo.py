@@ -79,6 +79,7 @@ class TestVideoYouTube(TestVideo):
                     self.item_descriptor, 'transcript', 'available_translations'
                 ).rstrip('/?'),
                 "autohideHtml5": False,
+                "recordedYoutubeIsAvailable": True,
             })),
             'track': None,
             'transcript_download_format': 'srt',
@@ -157,6 +158,7 @@ class TestVideoNonYouTube(TestVideo):
                     self.item_descriptor, 'transcript', 'available_translations'
                 ).rstrip('/?'),
                 "autohideHtml5": False,
+                "recordedYoutubeIsAvailable": True,
             })),
             'track': None,
             'transcript_download_format': 'srt',
@@ -211,6 +213,7 @@ class TestGetHtmlMethod(BaseTestXmodule):
                 self.item_descriptor, 'transcript', 'available_translations'
             ).rstrip('/?'),
             "autohideHtml5": False,
+            "recordedYoutubeIsAvailable": True,
         })
 
     def test_get_html_track(self):
@@ -479,23 +482,7 @@ class TestGetHtmlMethod(BaseTestXmodule):
         # it'll just fall back to the values in the VideoDescriptor.
         self.assertIn("example_source.mp4", self.item_descriptor.render(STUDENT_VIEW).content)
 
-    @patch('edxval.api.get_video_info')
-    def test_get_html_with_mocked_edx_video_id(self, mock_get_video_info):
-        mock_get_video_info.return_value = {
-            'url': '/edxval/video/example',
-            'edx_video_id': u'example',
-            'duration': 111.0,
-            'client_video_id': u'The example video',
-            'encoded_videos': [
-                {
-                    'url': u'http://www.meowmix.com',
-                    'file_size': 25556,
-                    'bitrate': 9600,
-                    'profile': u'desktop_mp4'
-                }
-            ]
-        }
-
+    def test_get_html_with_mocked_edx_video_id(self):
         SOURCE_XML = """
             <video show_captions="true"
             display_name="A Name"
@@ -555,7 +542,23 @@ class TestGetHtmlMethod(BaseTestXmodule):
             edx_video_id=data['edx_video_id']
         )
         self.initialize_module(data=DATA)
-        context = self.item_descriptor.render(STUDENT_VIEW).content
+
+        with patch('edxval.api.get_video_info') as mock_get_video_info:
+            mock_get_video_info.return_value = {
+                'url': '/edxval/video/example',
+                'edx_video_id': u'example',
+                'duration': 111.0,
+                'client_video_id': u'The example video',
+                'encoded_videos': [
+                    {
+                        'url': u'http://www.meowmix.com',
+                        'file_size': 25556,
+                        'bitrate': 9600,
+                        'profile': u'desktop_mp4'
+                    }
+                ]
+            }
+            context = self.item_descriptor.render(STUDENT_VIEW).content
 
         expected_context = dict(initial_context)
         expected_context['metadata'].update({
@@ -1379,6 +1382,7 @@ class TestVideoWithBumper(TestVideo):
                     self.item_descriptor, 'transcript', 'available_translations'
                 ).rstrip('/?'),
                 "autohideHtml5": False,
+                "recordedYoutubeIsAvailable": True,
             })),
             'track': None,
             'transcript_download_format': 'srt',

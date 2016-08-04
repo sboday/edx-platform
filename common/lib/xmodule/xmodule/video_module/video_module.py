@@ -38,7 +38,7 @@ from xmodule.exceptions import NotFoundError
 from xmodule.contentstore.content import StaticContent
 
 from .transcripts_utils import VideoTranscriptsMixin, Transcript, get_html5_ids
-from .video_utils import create_youtube_string, get_poster, rewrite_video_url
+from .video_utils import create_youtube_string, get_poster, rewrite_video_url, format_xml_exception_message
 from .bumper_utils import bumperize
 from .video_xfields import VideoFields
 from .video_handlers import VideoStudentViewHandlers, VideoStudioViewHandlers
@@ -112,6 +112,7 @@ class VideoModule(VideoFields, VideoTranscriptsMixin, VideoStudentViewHandlers, 
     #TODO: For each of the following, ensure that any generated html is properly escaped.
     js = {
         'js': [
+            resource_string(module, 'js/src/time.js'),
             resource_string(module, 'js/src/video/00_component.js'),
             resource_string(module, 'js/src/video/00_video_storage.js'),
             resource_string(module, 'js/src/video/00_resizer.js'),
@@ -332,7 +333,12 @@ class VideoModule(VideoFields, VideoTranscriptsMixin, VideoStudentViewHandlers, 
             ## There is no option in the "Advanced Editor" to set this option. However,
             ## this option will have an effect if changed to "True". The code on
             ## front-end exists.
-            'autohideHtml5': False
+            'autohideHtml5': False,
+
+            # This is the server's guess at whether youtube is available for
+            # this user, based on what was recorded the last time we saw the
+            # user, and defaulting to True.
+            'recordedYoutubeIsAvailable': self.youtube_is_available,
         }
 
         bumperize(self)
@@ -345,7 +351,7 @@ class VideoModule(VideoFields, VideoTranscriptsMixin, VideoStudentViewHandlers, 
             'cdn_eval': cdn_eval,
             'cdn_exp_group': cdn_exp_group,
             'id': self.location.html_id(),
-            'display_name': self.display_name_with_default_escaped,
+            'display_name': self.display_name_with_default,
             'handout': self.handout,
             'download_video_link': download_video_link,
             'track': track_url,
@@ -556,7 +562,18 @@ class VideoDescriptor(VideoFields, VideoTranscriptsMixin, VideoStudioViewHandler
             # is set to its default value, we don't write it out.
             if value:
                 if key in self.fields and self.fields[key].is_set_on(self):
-                    xml.set(key, unicode(value))
+                    try:
+                        xml.set(key, unicode(value))
+                    except UnicodeDecodeError:
+                        exception_message = format_xml_exception_message(self.location, key, value)
+                        log.exception(exception_message)
+                        # If exception is UnicodeDecodeError set value using unicode 'utf-8' scheme.
+                        log.info("Setting xml value using 'utf-8' scheme.")
+                        xml.set(key, unicode(value, 'utf-8'))
+                    except ValueError:
+                        exception_message = format_xml_exception_message(self.location, key, value)
+                        log.exception(exception_message)
+                        raise
 
         for source in self.html5_sources:
             ele = etree.Element('source')
@@ -602,9 +619,9 @@ class VideoDescriptor(VideoFields, VideoTranscriptsMixin, VideoStudioViewHandler
             A full youtube url to the video whose ID is passed in
         """
         if youtube_id:
-            return 'https://www.youtube.com/watch?v={0}'.format(youtube_id)
+            return u'https://www.youtube.com/watch?v={0}'.format(youtube_id)
         else:
-            return ''
+            return u''
 
     def get_context(self):
         """

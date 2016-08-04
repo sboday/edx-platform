@@ -3,17 +3,22 @@ Tests related to the basic footer-switching based off SITE_NAME to ensure
 edx.org uses an edx footer but other instances use an Open edX footer.
 """
 
+import unittest
 from nose.plugins.attrib import attr
 
 from django.conf import settings
 from django.test import TestCase
 from django.test.utils import override_settings
 
-from openedx.core.djangoapps.theming.test_util import with_comprehensive_theme
+from openedx.core.djangoapps.theming.tests.test_util import with_comprehensive_theme
 
 
+@unittest.skipUnless(settings.ROOT_URLCONF == 'lms.urls', 'Test only valid in lms')
 @attr('shard_1')
 class TestFooter(TestCase):
+    """
+    Tests for edx and OpenEdX footer
+    """
 
     SOCIAL_MEDIA_NAMES = [
         "facebook",

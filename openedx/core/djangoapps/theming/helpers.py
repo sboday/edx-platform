@@ -1,41 +1,29 @@
 """
-    Helpers for accessing comprehensive theming related variables.
+Helpers for accessing comprehensive theming related variables.
 """
 import re
 import os
 from path import Path
 
 from django.conf import settings, ImproperlyConfigured
-from django.core.cache import cache
 from django.contrib.staticfiles.storage import staticfiles_storage
 
+from request_cache.middleware import RequestCache
+
 from microsite_configuration import microsite
-from microsite_configuration import page_title_breadcrumbs
 
 
-def get_page_title_breadcrumbs(*args):
-    """
-    This is a proxy function to hide microsite_configuration behind comprehensive theming.
-    """
-    return page_title_breadcrumbs(*args)
-
-
-def get_value(val_name, default=None, **kwargs):
-    """
-    This is a proxy function to hide microsite_configuration behind comprehensive theming.
-    """
-    return microsite.get_value(val_name, default=default, **kwargs)
+from logging import getLogger
+logger = getLogger(__name__)  # pylint: disable=invalid-name
 
 
 def get_template_path(relative_path, **kwargs):
     """
     This is a proxy function to hide microsite_configuration behind comprehensive theming.
     """
-    template_path = get_template_path_with_theme(relative_path)
-    if template_path == relative_path:  # we don't have a theme now look into microsites
-        template_path = microsite.get_template_path(relative_path, **kwargs)
-
-    return template_path
+    if microsite.is_request_in_microsite():
+        relative_path = microsite.get_template_path(relative_path, **kwargs)
+    return relative_path
 
 
 def is_request_in_themed_site():
@@ -53,32 +41,12 @@ def get_template(uri):
     return microsite.get_template(uri)
 
 
-def get_themed_template_path(relative_path, default_path, **kwargs):
-    """
-    This is a proxy function to hide microsite_configuration behind comprehensive theming.
-
-    The workflow considers the "Stanford theming" feature alongside of microsites.  It returns
-    the path of the themed template (i.e. relative_path) if Stanford theming is enabled AND
-    microsite theming is disabled, otherwise it will return the path of either the microsite
-    override template or the base lms template.
-
-    :param relative_path: relative path of themed template
-    :param default_path: relative path of the microsite's or lms template to use if
-        theming is disabled or microsite is enabled
-    """
-    is_stanford_theming_enabled = settings.FEATURES.get("USE_CUSTOM_THEME", False)
-    is_microsite = microsite.is_request_in_microsite()
-    if is_stanford_theming_enabled and not is_microsite:
-        return relative_path
-    return microsite.get_template_path(default_path, **kwargs)
-
-
 def get_template_path_with_theme(relative_path):
     """
     Returns template path in current site's theme if it finds one there otherwise returns same path.
 
     Example:
-        >> get_template_path_with_theme('header')
+        >> get_template_path_with_theme('header.html')
         '/red-theme/lms/templates/header.html'
 
     Parameters:
@@ -87,58 +55,44 @@ def get_template_path_with_theme(relative_path):
     Returns:
         (str): template path in current site's theme
     """
-    site_theme_dir = get_current_site_theme_dir()
-    if not site_theme_dir:
-        return relative_path
+    relative_path = os.path.normpath(relative_path)
 
-    base_theme_dir = get_base_theme_dir()
-    root_name = get_project_root_name()
-    template_path = "/".join([
-        base_theme_dir,
-        site_theme_dir,
-        root_name,
-        "templates"
-    ])
+    theme = get_current_theme()
+
+    if not theme:
+        return relative_path
 
     # strip `/` if present at the start of relative_path
     template_name = re.sub(r'^/+', '', relative_path)
-    search_path = os.path.join(template_path, template_name)
-    if os.path.isfile(search_path):
-        path = '/{site_theme_dir}/{root_name}/templates/{template_name}'.format(
-            site_theme_dir=site_theme_dir,
-            root_name=root_name,
-            template_name=template_name,
-        )
-        return path
+
+    template_path = theme.template_path / template_name
+    absolute_path = theme.path / "templates" / template_name
+    if absolute_path.exists():
+        return str(template_path)
     else:
         return relative_path
 
 
-def get_current_theme_template_dirs():
+def get_all_theme_template_dirs():
     """
-    Returns template directories for the current theme.
+    Returns template directories for all the themes.
 
     Example:
-        >> get_current_theme_template_dirs('header.html')
-        ['/edx/app/edxapp/edx-platform/themes/red-theme/lms/templates/', ]
+        >> get_all_theme_template_dirs()
+        [
+            '/edx/app/edxapp/edx-platform/themes/red-theme/lms/templates/',
+        ]
 
     Returns:
         (list): list of directories containing theme templates.
     """
-    site_theme_dir = get_current_site_theme_dir()
-    if not site_theme_dir:
-        return None
+    themes = get_themes()
+    template_paths = list()
 
-    base_theme_dir = get_base_theme_dir()
-    root_name = get_project_root_name()
-    template_path = "/".join([
-        base_theme_dir,
-        site_theme_dir,
-        root_name,
-        "templates"
-    ])
+    for theme in themes:
+        template_paths.extend(theme.template_dirs)
 
-    return [template_path]
+    return template_paths
 
 
 def strip_site_theme_templates_path(uri):
@@ -155,14 +109,14 @@ def strip_site_theme_templates_path(uri):
     Returns:
         (str): template path with site theme path removed.
     """
-    site_theme_dir = get_current_site_theme_dir()
-    if not site_theme_dir:
+    theme = get_current_theme()
+
+    if not theme:
         return uri
 
-    root_name = get_project_root_name()
     templates_path = "/".join([
-        site_theme_dir,
-        root_name,
+        theme.theme_dir_name,
+        get_project_root_name(),
         "templates"
     ])
 
@@ -170,43 +124,94 @@ def strip_site_theme_templates_path(uri):
     return uri
 
 
+def get_current_request():
+    """
+    Return current request instance.
+
+    Returns:
+         (HttpRequest): returns current request
+    """
+    return RequestCache.get_current_request()
+
+
 def get_current_site():
     """
     Return current site.
 
     Returns:
-         (django.contrib.sites.models.Site): theme directory for current site
+         (django.contrib.sites.models.Site): returns current site
     """
-    from edxmako.middleware import REQUEST_CONTEXT
-    request = getattr(REQUEST_CONTEXT, 'request', None)
+    request = get_current_request()
     if not request:
         return None
     return getattr(request, 'site', None)
 
 
-def get_current_site_theme_dir():
+def get_current_site_theme():
     """
-    Return theme directory for the current site.
-
-    Example:
-        >> get_current_site_theme_dir()
-        'red-theme'
+    Return current site theme object. Returns None if theming is disabled.
 
     Returns:
-         (str): theme directory for current site
+         (ecommerce.theming.models.SiteTheme): site theme object for the current site.
     """
-    site = get_current_site()
-    if not site:
+    # Return None if theming is disabled
+    if not is_comprehensive_theming_enabled():
         return None
-    site_theme_dir = cache.get(get_site_theme_cache_key(site))
 
-    # if site theme dir is not in cache and comprehensive theming is enabled then pull it from db.
-    if not site_theme_dir and is_comprehensive_theming_enabled():
-        site_theme = site.themes.first()  # pylint: disable=no-member
-        if site_theme:
-            site_theme_dir = site_theme.theme_dir_name
-            cache_site_theme_dir(site, site_theme_dir)
-    return site_theme_dir
+    request = get_current_request()
+    if not request:
+        return None
+    return getattr(request, 'site_theme', None)
+
+
+def get_current_theme():
+    """
+    Return current theme object. Returns None if theming is disabled.
+
+    Returns:
+         (ecommerce.theming.models.SiteTheme): site theme object for the current site.
+    """
+    # Return None if theming is disabled
+    if not is_comprehensive_theming_enabled():
+        return None
+
+    site_theme = get_current_site_theme()
+    if not site_theme:
+        return None
+    try:
+        return Theme(
+            name=site_theme.theme_dir_name,
+            theme_dir_name=site_theme.theme_dir_name,
+            themes_base_dir=get_theme_base_dir(site_theme.theme_dir_name),
+        )
+    except ValueError as error:
+        # Log exception message and return None, so that open source theme is used instead
+        logger.exception('Theme not found in any of the themes dirs. [%s]', error)
+        return None
+
+
+def get_theme_base_dir(theme_dir_name, suppress_error=False):
+    """
+    Returns absolute path to the directory that contains the given theme.
+
+    Args:
+        theme_dir_name (str): theme directory name to get base path for
+        suppress_error (bool): if True function will return None if theme is not found instead of raising an error
+    Returns:
+        (str): Base directory that contains the given theme
+    """
+    for themes_dir in get_theme_base_dirs():
+        if theme_dir_name in get_theme_dirs(themes_dir):
+            return themes_dir
+
+    if suppress_error:
+        return None
+
+    raise ValueError(
+        "Theme '{theme}' not found in any of the following themes dirs, \nTheme dirs: \n{dir}".format(
+            theme=theme_dir_name,
+            dir=get_theme_base_dirs(),
+        ))
 
 
 def get_project_root_name():
@@ -229,21 +234,58 @@ def get_project_root_name():
     return root.name
 
 
-def get_base_theme_dir():
+def get_theme_base_dirs():
     """
     Return base directory that contains all the themes.
 
+    Raises:
+        ImproperlyConfigured - exception is raised if
+            1 - COMPREHENSIVE_THEME_DIRS is not a list
+            1 - theme dir path is not a string
+            2 - theme dir path is not an absolute path
+            3 - path specified in COMPREHENSIVE_THEME_DIRS does not exist
+
     Example:
-        >> get_base_theme_dir()
-        '/edx/app/edxapp/edx-platform/themes'
+        >> get_theme_base_dirs()
+        ['/edx/app/ecommerce/ecommerce/themes']
 
     Returns:
          (Path): Base theme directory path
     """
-    themes_dir = settings.COMPREHENSIVE_THEME_DIR
-    if not isinstance(themes_dir, basestring):
-        raise ImproperlyConfigured("COMPREHENSIVE_THEME_DIR must be a string.")
-    return Path(themes_dir)
+    # Return an empty list if theming is disabled
+    if not is_comprehensive_theming_enabled():
+        return []
+
+    theme_base_dirs = []
+
+    # Legacy code for COMPREHENSIVE_THEME_DIR backward compatibility
+    if hasattr(settings, "COMPREHENSIVE_THEME_DIR"):
+        theme_dir = settings.COMPREHENSIVE_THEME_DIR
+
+        if not isinstance(theme_dir, basestring):
+            raise ImproperlyConfigured("COMPREHENSIVE_THEME_DIR must be a string.")
+        if not theme_dir.startswith("/"):
+            raise ImproperlyConfigured("COMPREHENSIVE_THEME_DIR must be an absolute paths to themes dir.")
+        if not os.path.isdir(theme_dir):
+            raise ImproperlyConfigured("COMPREHENSIVE_THEME_DIR must be a valid path.")
+
+        theme_base_dirs.append(Path(theme_dir))
+
+    if hasattr(settings, "COMPREHENSIVE_THEME_DIRS"):
+        theme_dirs = settings.COMPREHENSIVE_THEME_DIRS
+
+        if not isinstance(theme_dirs, list):
+            raise ImproperlyConfigured("COMPREHENSIVE_THEME_DIRS must be a list.")
+        if not all([isinstance(theme_dir, basestring) for theme_dir in theme_dirs]):
+            raise ImproperlyConfigured("COMPREHENSIVE_THEME_DIRS must contain only strings.")
+        if not all([theme_dir.startswith("/") for theme_dir in theme_dirs]):
+            raise ImproperlyConfigured("COMPREHENSIVE_THEME_DIRS must contain only absolute paths to themes dirs.")
+        if not all([os.path.isdir(theme_dir) for theme_dir in theme_dirs]):
+            raise ImproperlyConfigured("COMPREHENSIVE_THEME_DIRS must contain valid paths.")
+
+        theme_base_dirs.extend([Path(theme_dir) for theme_dir in theme_dirs])
+
+    return theme_base_dirs
 
 
 def is_comprehensive_theming_enabled():
@@ -256,42 +298,11 @@ def is_comprehensive_theming_enabled():
     Returns:
          (bool): True if comprehensive theming is enabled else False
     """
-    return True if settings.COMPREHENSIVE_THEME_DIR else False
+    # Disable theming for microsites
+    if microsite.is_request_in_microsite():
+        return False
 
-
-def get_site_theme_cache_key(site):
-    """
-    Return cache key for the given site.
-
-    Example:
-        >> site = Site(domain='red-theme.org', name='Red Theme')
-        >> get_site_theme_cache_key(site)
-        'theming.site.red-theme.org'
-
-    Parameters:
-        site (django.contrib.sites.models.Site): site where key needs to generated
-    Returns:
-        (str): a key to be used as cache key
-    """
-    cache_key = "theming.site.{domain}".format(
-        domain=site.domain
-    )
-    return cache_key
-
-
-def cache_site_theme_dir(site, theme_dir):
-    """
-    Cache site's theme directory.
-
-    Example:
-        >> site = Site(domain='red-theme.org', name='Red Theme')
-        >> cache_site_theme_dir(site, 'red-theme')
-
-    Parameters:
-        site (django.contrib.sites.models.Site): site for to cache
-        theme_dir (str): theme directory for the given site
-    """
-    cache.set(get_site_theme_cache_key(site), theme_dir, settings.THEME_CACHE_TIMEOUT)
+    return settings.ENABLE_COMPREHENSIVE_THEMING
 
 
 def get_static_file_url(asset):
@@ -299,8 +310,8 @@ def get_static_file_url(asset):
     Returns url of the themed asset if asset is not themed than returns the default asset url.
 
     Example:
-        >> get_static_file_url('css/lms-main.css')
-        '/static/red-theme/css/lms-main.css'
+        >> get_static_file_url('css/lms-main-v1.css')
+        '/static/red-theme/css/lms-main-v1.css'
 
     Parameters:
         asset (str): asset's path relative to the static files directory
@@ -311,19 +322,34 @@ def get_static_file_url(asset):
     return staticfiles_storage.url(asset)
 
 
-def get_themes():
+def get_themes(themes_dir=None):
     """
     get a list of all themes known to the system.
+
+    Args:
+        themes_dir (str): (Optional) Path to themes base directory
     Returns:
         list of themes known to the system.
     """
-    themes_dir = get_base_theme_dir()
-    # pick only directories and discard files in themes directory
-    theme_names = []
-    if themes_dir:
-        theme_names = [_dir for _dir in os.listdir(themes_dir) if is_theme_dir(themes_dir / _dir)]
+    if not is_comprehensive_theming_enabled():
+        return []
 
-    return [Theme(name, name) for name in theme_names]
+    themes_dirs = [Path(themes_dir)] if themes_dir else get_theme_base_dirs()
+    # pick only directories and discard files in themes directory
+    themes = []
+    for themes_dir in themes_dirs:
+        themes.extend([Theme(name, name, themes_dir) for name in get_theme_dirs(themes_dir)])
+
+    return themes
+
+
+def get_theme_dirs(themes_dir=None):
+    """
+    Returns theme dirs in given dirs
+    Args:
+        themes_dir (Path): base dir that contains themes.
+    """
+    return [_dir for _dir in os.listdir(themes_dir) if is_theme_dir(themes_dir / _dir)]
 
 
 def is_theme_dir(_dir):
@@ -346,19 +372,21 @@ class Theme(object):
     class to encapsulate theme related information.
     """
     name = ''
-    theme_dir = ''
-    path = ''
+    theme_dir_name = ''
+    themes_base_dir = None
 
-    def __init__(self, name='', theme_dir=''):
+    def __init__(self, name='', theme_dir_name='', themes_base_dir=None):
         """
         init method for Theme
+
         Args:
             name: name if the theme
-            theme_dir: directory name of the theme
+            theme_dir_name: directory name of the theme
+            themes_base_dir: directory path of the folder that contains the theme
         """
         self.name = name
-        self.theme_dir = theme_dir
-        self.path = Path(get_base_theme_dir()) / theme_dir / get_project_root_name()
+        self.theme_dir_name = theme_dir_name
+        self.themes_base_dir = themes_base_dir
 
     def __eq__(self, other):
         """
@@ -369,13 +397,45 @@ class Theme(object):
         Returns:
             (bool) True if two themes are the same else False
         """
-        return (self.theme_dir, self.path) == (other.theme_dir, other.path)
+        return (self.theme_dir_name, self.path) == (other.theme_dir_name, other.path)
 
     def __hash__(self):
-        return hash((self.theme_dir, self.path))
+        return hash((self.theme_dir_name, self.path))
 
     def __unicode__(self):
         return u"<Theme: {name} at '{path}'>".format(name=self.name, path=self.path)
 
     def __repr__(self):
         return self.__unicode__()
+
+    @property
+    def path(self):
+        """
+        Get absolute path of the directory that contains current theme's templates, static assets etc.
+
+        Returns:
+            Path: absolute path to current theme's contents
+        """
+        return Path(self.themes_base_dir) / self.theme_dir_name / get_project_root_name()
+
+    @property
+    def template_path(self):
+        """
+        Get absolute path of current theme's template directory.
+
+        Returns:
+            Path: absolute path to current theme's template directory
+        """
+        return Path(self.theme_dir_name) / get_project_root_name() / 'templates'
+
+    @property
+    def template_dirs(self):
+        """
+        Get a list of all template directories for current theme.
+
+        Returns:
+            list: list of all template directories for current theme.
+        """
+        return [
+            self.path / 'templates',
+        ]

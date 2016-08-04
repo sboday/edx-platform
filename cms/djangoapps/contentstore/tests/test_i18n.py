@@ -10,7 +10,6 @@ from contentstore.tests.utils import AjaxEnabledTestClient
 from xmodule.modulestore.django import ModuleI18nService
 from django.utils import translation
 from django.utils.translation import get_language
-from django.conf import settings
 from xmodule.modulestore.tests.factories import ItemFactory, CourseFactory
 from contentstore.views.preview import _preview_module_system
 
@@ -66,7 +65,7 @@ class TestModuleI18nService(ModuleStoreTestCase):
             self.descriptor,
             self.field_data,
         )
-        self.addCleanup(translation.activate, settings.LANGUAGE_CODE)
+        self.addCleanup(translation.deactivate)
 
     def get_module_i18n_service(self, descriptor):
         """
@@ -167,6 +166,8 @@ class InternationalizationTest(ModuleStoreTestCase):
     Tests to validate Internationalization.
     """
 
+    CREATE_USER = False
+
     def setUp(self):
         """
         These tests need a user in the DB so that the django Test Client
@@ -175,7 +176,7 @@ class InternationalizationTest(ModuleStoreTestCase):
         will be cleared out before each test case execution and deleted
         afterwards.
         """
-        super(InternationalizationTest, self).setUp(create_user=False)
+        super(InternationalizationTest, self).setUp()
 
         self.uname = 'testuser'
         self.email = 'test+courses@edx.org'

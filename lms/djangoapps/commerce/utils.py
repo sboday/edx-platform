@@ -5,7 +5,7 @@ from urlparse import urljoin
 from django.conf import settings
 
 from commerce.models import CommerceConfiguration
-from openedx.core.djangoapps.theming import helpers
+from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 
 log = logging.getLogger(__name__)
 
@@ -45,9 +45,15 @@ class EcommerceService(object):
         self.config = CommerceConfiguration.current()
 
     def is_enabled(self, user):
-        """ Check if the user is activated, if the service is enabled and that the site is not a microsite. """
-        return (user.is_active and self.config.checkout_on_ecommerce_service and not
-                helpers.is_request_in_themed_site())
+        """
+        Determines the availability of the EcommerceService based on user activation and service configuration.
+        Note: If the user is anonymous we bypass the user activation gate and only look at the service config.
+
+        Returns:
+            Boolean
+        """
+        allow_user = user.is_active or user.is_anonymous()
+        return allow_user and self.config.checkout_on_ecommerce_service
 
     def payment_page_url(self):
         """ Return the URL for the checkout page.
@@ -55,7 +61,10 @@ class EcommerceService(object):
         Example:
             http://localhost:8002/basket/single_item/
         """
-        ecommerce_url_root = helpers.get_value('ECOMMERCE_PUBLIC_URL_ROOT', settings.ECOMMERCE_PUBLIC_URL_ROOT)
+        ecommerce_url_root = configuration_helpers.get_value(
+            'ECOMMERCE_PUBLIC_URL_ROOT',
+            settings.ECOMMERCE_PUBLIC_URL_ROOT,
+        )
         return urljoin(ecommerce_url_root, self.config.single_course_checkout_page)
 
     def checkout_page_url(self, sku):

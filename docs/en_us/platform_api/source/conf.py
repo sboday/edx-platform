@@ -44,7 +44,7 @@ MOCK_MODULES = [
     'courseware.access',
     'courseware.model_data',
     'courseware.module_render',
-    'courseware.views',
+    'courseware.views.views',
     'util.request',
     'eventtracking',
     'xmodule',
@@ -151,6 +151,12 @@ MOCK_MODULES = [
     'xmodule.assetstore.assetmgr.AssetManager',
     'xmodule.contentstore.django',
     'piexif',
+    'provider',
+    'provider.oauth2',
+    'oauth2_provider',
+    'celery.signals',
+    'edx_rest_framework_extensions',
+    'edx_rest_framework_extensions.authentication',
 ]
 
 for mod_name in MOCK_MODULES:

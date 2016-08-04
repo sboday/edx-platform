@@ -83,12 +83,14 @@ class CertificateStatuses(object):
     error = 'error'
     generating = 'generating'
     notpassing = 'notpassing'
-    regenerating = 'regenerating'
     restricted = 'restricted'
     unavailable = 'unavailable'
     auditing = 'auditing'
     audit_passing = 'audit_passing'
     audit_notpassing = 'audit_notpassing'
+    unverified = 'unverified'
+    invalidated = 'invalidated'
+    requesting = 'requesting'
 
     readable_statuses = {
         downloadable: "already received",
@@ -96,7 +98,7 @@ class CertificateStatuses(object):
         error: "error states"
     }
 
-    PASSED_STATUSES = (downloadable, generating, regenerating)
+    PASSED_STATUSES = (downloadable, generating)
 
     @classmethod
     def is_passing_status(cls, status):
@@ -350,24 +352,31 @@ class CertificateGenerationHistory(TimeStampedModel):
             students.
         """
         task_input = self.instructor_task.task_input
-        try:
-            task_input_json = json.loads(task_input)
-        except ValueError:
+        if not task_input.strip():
             # if task input is empty, it means certificates were generated for all learners
             # Translators: This string represents task was executed for all learners.
             return _("All learners")
 
+        task_input_json = json.loads(task_input)
+
         # get statuses_to_regenerate from task_input convert statuses to human readable strings and return
         statuses = task_input_json.get('statuses_to_regenerate', None)
         if statuses:
-            return ", ".join(
-                [CertificateStatuses.readable_statuses.get(status, "") for status in statuses]
-            )
+            readable_statuses = [
+                CertificateStatuses.readable_statuses.get(status) for status in statuses
+                if CertificateStatuses.readable_statuses.get(status) is not None
+            ]
+            return ", ".join(readable_statuses)
 
-        # If students is present in task_input then, certificate generation task was run to
-        # generate certificates for white listed students otherwise it is for all students.
-        # Translators: This string represents task was executed for students having exceptions.
-        return _("For exceptions") if 'students' in task_input_json else _("All learners")
+        # If "student_set" is present in task_input, then this task only
+        # generates certificates for white listed students. Note that
+        # this key used to be "students", so we include that in this conditional
+        # for backwards compatibility.
+        if 'student_set' in task_input_json or 'students' in task_input_json:
+            # Translators: This string represents task was executed for students having exceptions.
+            return _("For exceptions")
+        else:
+            return _("All learners")
 
     class Meta(object):
         app_label = "certificates"
@@ -429,6 +438,25 @@ class CertificateInvalidation(TimeStampedModel):
             })
         return data
 
+    @classmethod
+    def has_certificate_invalidation(cls, student, course_key):
+        """Check that whether the student in the course has been invalidated
+        for receiving certificates.
+
+        Arguments:
+            student (user): logged-in user
+            course_key (CourseKey): The course associated with the certificate.
+
+        Returns:
+             Boolean denoting whether the student in the course is invalidated
+             to receive certificates
+        """
+        return cls.objects.filter(
+            generated_certificate__course_id=course_key,
+            active=True,
+            generated_certificate__user=student
+        ).exists()
+
 
 @receiver(COURSE_CERT_AWARDED, sender=GeneratedCertificate)
 def handle_course_cert_awarded(sender, user, course_key, **kwargs):  # pylint: disable=unused-argument
@@ -460,6 +488,9 @@ def certificate_status_for_student(student, course_id):
                    should not be issued a certificate. This will
                    be set if allow_certificate is set to False in
                    the userprofile table
+    unverified   - The student is in verified enrollment track and
+                   the student did not have their identity verified,
+                   even though they should be eligible for the cert otherwise.
 
     If the status is "downloadable", the dictionary also contains
     "download_url".

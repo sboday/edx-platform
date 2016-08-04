@@ -9,7 +9,7 @@ from mock import patch
 from courseware.tests.factories import BetaTesterFactory
 from courseware.access import has_access
 from lms.djangoapps.ccx.tests.test_overrides import inject_field_overrides
-from lms.djangoapps.django_comment_client.utils import get_accessible_discussion_modules
+from lms.djangoapps.django_comment_client.utils import get_accessible_discussion_xblocks
 from lms.djangoapps.courseware.field_overrides import OverrideFieldData, OverrideModulestoreFieldData
 from openedx.core.djangoapps.self_paced.models import SelfPacedConfiguration
 from xmodule.modulestore.tests.django_utils import ModuleStoreTestCase
@@ -26,6 +26,7 @@ class SelfPacedDateOverrideTest(ModuleStoreTestCase):
     """
 
     def setUp(self):
+        self.reset_setting_cache_variables()
         super(SelfPacedDateOverrideTest, self).setUp()
 
         SelfPacedConfiguration(enabled=True).save()
@@ -35,8 +36,15 @@ class SelfPacedDateOverrideTest(ModuleStoreTestCase):
         self.future = self.now + datetime.timedelta(days=30)
 
     def tearDown(self):
+        self.reset_setting_cache_variables()
         super(SelfPacedDateOverrideTest, self).tearDown()
 
+    def reset_setting_cache_variables(self):
+        """
+        The overridden settings for this class get cached on class variables.
+        Reset those to None before and after running the test to ensure clean
+        behavior.
+        """
         OverrideFieldData.provider_classes = None
         OverrideModulestoreFieldData.provider_classes = None
 
@@ -51,8 +59,8 @@ class SelfPacedDateOverrideTest(ModuleStoreTestCase):
         inject_field_overrides((course, section), course, self.user)
         return (course, section)
 
-    def create_discussion_modules(self, parent):
-        # Create a released discussion module
+    def create_discussion_xblocks(self, parent):
+        # Create a released discussion xblock
         ItemFactory.create(
             parent=parent,
             category='discussion',
@@ -60,7 +68,7 @@ class SelfPacedDateOverrideTest(ModuleStoreTestCase):
             start=self.now,
         )
 
-        # Create a scheduled discussion module
+        # Create a scheduled discussion xblock
         ItemFactory.create(
             parent=parent,
             category='discussion',
@@ -98,9 +106,9 @@ class SelfPacedDateOverrideTest(ModuleStoreTestCase):
         beta_tester = BetaTesterFactory(course_key=self_paced_course.id)
 
         # Verify course is `self_paced` and course has start date but not section.
-        self.assertTrue(self_paced_course.self_paced, "Course is self_paced")
-        self.assertEqual(self_paced_course.start, one_month_from_now, "Course has start date")
-        self.assertIsNone(self_paced_section.start, "Section start date is None")
+        self.assertTrue(self_paced_course.self_paced)
+        self.assertEqual(self_paced_course.start, one_month_from_now)
+        self.assertIsNone(self_paced_section.start)
 
         # Verify that non-staff user do not have access to the course
         self.assertFalse(has_access(self.non_staff_user, 'load', self_paced_course))
@@ -110,32 +118,32 @@ class SelfPacedDateOverrideTest(ModuleStoreTestCase):
         self.assertTrue(has_access(beta_tester, 'load', self_paced_section, self_paced_course.id))
 
     @patch.dict('courseware.access.settings.FEATURES', {'DISABLE_START_DATES': False})
-    def test_instructor_paced_discussion_module_visibility(self):
+    def test_instructor_paced_discussion_xblock_visibility(self):
         """
-        Verify that discussion modules scheduled for release in the future are
+        Verify that discussion xblocks scheduled for release in the future are
         not visible to students in an instructor-paced course.
         """
         course, section = self.setup_course(start=self.now, self_paced=False)
-        self.create_discussion_modules(section)
+        self.create_discussion_xblocks(section)
 
-        # Only the released module should be visible when the course is instructor-paced.
-        modules = get_accessible_discussion_modules(course, self.non_staff_user)
+        # Only the released xblocks should be visible when the course is instructor-paced.
+        xblocks = get_accessible_discussion_xblocks(course, self.non_staff_user)
         self.assertTrue(
-            all(module.display_name == 'released' for module in modules)
+            all(xblock.display_name == 'released' for xblock in xblocks)
         )
 
     @patch.dict('courseware.access.settings.FEATURES', {'DISABLE_START_DATES': False})
-    def test_self_paced_discussion_module_visibility(self):
+    def test_self_paced_discussion_xblock_visibility(self):
         """
-        Regression test. Verify that discussion modules scheduled for release
+        Regression test. Verify that discussion xblocks scheduled for release
         in the future are visible to students in a self-paced course.
         """
         course, section = self.setup_course(start=self.now, self_paced=True)
-        self.create_discussion_modules(section)
+        self.create_discussion_xblocks(section)
 
-        # The scheduled module should be visible when the course is self-paced.
-        modules = get_accessible_discussion_modules(course, self.non_staff_user)
-        self.assertEqual(len(modules), 2)
+        # The scheduled xblocks should be visible when the course is self-paced.
+        xblocks = get_accessible_discussion_xblocks(course, self.non_staff_user)
+        self.assertEqual(len(xblocks), 2)
         self.assertTrue(
-            any(module.display_name == 'scheduled' for module in modules)
+            any(xblock.display_name == 'scheduled' for xblock in xblocks)
         )

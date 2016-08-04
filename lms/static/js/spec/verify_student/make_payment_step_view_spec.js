@@ -2,7 +2,7 @@ define([
         'jquery',
         'underscore',
         'backbone',
-        'common/js/spec_helpers/ajax_helpers',
+        'edx-ui-toolkit/js/utils/spec-helpers/ajax-helpers',
         'common/js/spec_helpers/template_helpers',
         'js/verify_student/views/make_payment_step_view'
     ],
@@ -34,7 +34,7 @@ define([
                 }).render();
 
                 // Stub the payment form submission
-                spyOn( view, 'submitForm' ).andCallFake( function() {} );
+                spyOn( view, 'submitForm' ).and.callFake( function() {} );
                 return view;
             };
 
@@ -91,7 +91,7 @@ define([
                 var form;
 
                 expect(view.submitForm).toHaveBeenCalled();
-                form = view.submitForm.mostRecentCall.args[0];
+                form = view.submitForm.calls.mostRecent().args[0];
 
                 expect(form.serialize()).toEqual($.param(params));
                 expect(form.attr('method')).toEqual("POST");
@@ -140,6 +140,46 @@ define([
                     succeeds: true
                 });
                 expectPaymentSubmitted( view, {foo: 'bar'} );
+            });
+
+            it ('view containing verification msg when verification deadline is set and user is active', function() {
+                var verificationDeadlineDateFormat = 'Aug 14, 2016 at 23:59 UTC';
+                createView({
+                    userEmail: 'test@example.com',
+                    requirements: {
+                        isVisible:true
+                    },
+                    verificationDeadline: verificationDeadlineDateFormat,
+                    isActive: true
+                });
+                // Verify user does not get user activation message when he is already activated.
+                expect($('p.instruction-info:contains("test@example.com")').length).toEqual(0);
+                // Verify user gets verification message.
+                expect(
+                    $(
+                        'p.instruction-info:contains("You can pay now even if you don\'t have ' +
+                        'the following items available, but you will need to have these by ' +
+                        verificationDeadlineDateFormat + ' to qualify to earn a Verified Certificate.")'
+                    ).length
+                ).toEqual(1);
+            });
+
+            it ('view containing user email when verification deadline is set and user is not active', function() {
+                createView({
+                    userEmail: 'test@example.com',
+                    requirements: {
+                        isVisible:true
+                    },
+                    verificationDeadline: true,
+                    isActive: false
+                });
+                // Verify un-activated user gets activation message.
+                expect($('p.instruction-info:contains("test@example.com")').length).toEqual(1);
+            });
+
+            it ('view containing user email', function() {
+                createView({userEmail: 'test@example.com', requirements: {isVisible:true}, isActive: false});
+                expect($('p.instruction-info:contains("test@example.com")').length).toEqual(1);
             });
 
             it( 'provides working payment buttons for a single processor', function() {

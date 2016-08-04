@@ -1,15 +1,16 @@
 ;(function (define, undefined) {
     'use strict';
     define([
-        'gettext', 'jquery', 'underscore', 'backbone',
+        'gettext', 'jquery', 'underscore', 'backbone', 'edx-ui-toolkit/js/utils/html-utils',
         'common/js/components/views/tabbed_view',
         'js/student_profile/views/section_two_tab',
         'text!templates/student_profile/learner_profile.underscore'],
-        function (gettext, $, _, Backbone, TabbedView, SectionTwoTab, learnerProfileTemplate) {
+        function (gettext, $, _, Backbone, HtmlUtils, TabbedView, SectionTwoTab, learnerProfileTemplate) {
 
         var LearnerProfileView = Backbone.View.extend({
 
-            initialize: function () {
+            initialize: function (options) {
+                this.options = _.extend({}, options);
                 _.bindAll(this, 'showFullProfile', 'render', 'renderFields', 'showLoadingError');
                 this.listenTo(this.options.preferencesModel, "change:" + 'account_privacy', this.render);
                 var Router = Backbone.Router.extend({
@@ -51,7 +52,7 @@
                     {view: this.sectionTwoView, title: gettext("About Me"), url: "about_me"}
                 ];
 
-                this.$el.html(this.template({
+                HtmlUtils.setHtml(this.$el, HtmlUtils.template(learnerProfileTemplate)({
                     username: self.options.accountSettingsModel.get('username'),
                     ownProfile: self.options.ownProfile,
                     showFullProfile: self.showFullProfile()

@@ -39,6 +39,21 @@ $f-monospace: 'Bitstream Vera Sans Mono', Consolas, Courier, monospace;
 // ====================
 $transparent: rgba(0,0,0,0); // used when color value is needed for UI width/transitions but element is transparent
 
+// +Colors - UXPL new pattern library colors
+// ====================
+$uxpl-blue-base: rgb(0, 117, 180); // wcag2a compliant
+$uxpl-blue-hover-active: rgb(41, 145, 195); // wcag2a compliant
+
+$uxpl-green-base: rgb(0, 129, 0); // wcag2a compliant
+$uxpl-green-hover-active: rgb(0, 155, 0); // wcag2a compliant
+
+$uxpl-pink-base: rgb(194, 56, 125); // wcag2a compliant
+$uxpl-pink-hover-active: lighten($uxpl-pink-base, 7%); // wcag2a compliant
+
+$uxpl-grayscale-x-back: rgb(245, 245, 245); // UXPL grayscale, x-back
+
+$uxpl-primary-accent: rgb(14, 166, 236);
+
 // +Colors - Primary
 // ====================
 $black: rgb(0,0,0);
@@ -46,6 +61,7 @@ $black-t0: rgba($black, 0.125);
 $black-t1: rgba($black, 0.25);
 $black-t2: rgba($black, 0.5);
 $black-t3: rgba($black, 0.75);
+$black-t4: rgba($black, 0.85);
 
 $white: rgb(255,255,255);
 $white-t0: rgba($white, 0.125);

@@ -8,7 +8,7 @@ from django.test import TestCase
 import mock
 
 from student.tests.factories import UserFactory
-from openedx.core.djangoapps.theming.test_util import with_comprehensive_theme
+from openedx.core.djangoapps.theming.tests.test_util import with_comprehensive_theme
 
 
 class UserMixin(object):

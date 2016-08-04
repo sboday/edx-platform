@@ -34,7 +34,8 @@ define(['underscore'], function(_) {
     };
 
     var DEFAULT_USER_PREFERENCES_DATA = {
-        'pref-lang': '2'
+        'pref-lang': '2',
+        'time_zone': null
     };
 
     var createUserPreferencesData = function(options) {
@@ -75,8 +76,8 @@ define(['underscore'], function(_) {
 
         if ('fieldValue' in view) {
             expect(view.fieldValue()).toBe(view.modelValue());
-        } else if (view.fieldType === 'link') {
-            expect($(element).find('a').length).toBe(1);
+        } else if (view.fieldType === 'button') {
+            expect($(element).find('button').length).toBe(1);
         } else {
             throw new Error('Unexpected field type: ' + view.fieldType);
         }
@@ -87,7 +88,7 @@ define(['underscore'], function(_) {
     };
 
     var expectSettingsSectionsAndFieldsToBeRendered = function (accountSettingsView, fieldsAreRendered) {
-        var sectionsData = accountSettingsView.options.sectionsData;
+        var sectionsData = accountSettingsView.options.tabSections.aboutTabSections;
 
         var sectionElements = accountSettingsView.$('.section');
         expect(sectionElements.length).toBe(sectionsData.length);

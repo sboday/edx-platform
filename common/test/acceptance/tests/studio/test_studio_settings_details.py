@@ -6,13 +6,12 @@ from flaky import flaky
 from nose.plugins.attrib import attr
 from unittest import skip
 
-from .base_studio_test import StudioCourseTest
-from ...fixtures.config import ConfigModelFixture
-from ...fixtures.course import CourseFixture
-from ...pages.studio.settings import SettingsPage
-from ...pages.studio.overview import CourseOutlinePage
-from ...tests.studio.base_studio_test import StudioCourseTest
-from ..helpers import (
+from common.test.acceptance.fixtures.config import ConfigModelFixture
+from common.test.acceptance.fixtures.course import CourseFixture
+from common.test.acceptance.pages.studio.settings import SettingsPage
+from common.test.acceptance.pages.studio.overview import CourseOutlinePage
+from common.test.acceptance.tests.studio.base_studio_test import StudioCourseTest
+from common.test.acceptance.tests.helpers import (
     generate_course_key,
     select_option_by_value,
     is_option_value_selected,
@@ -50,6 +49,7 @@ class SettingsMilestonesTest(StudioSettingsDetailsTest):
 
         self.assertTrue(self.settings_detail.pre_requisite_course_options)
 
+    @skip("Too flaky for the flaky decorator  SOL-1811")  # SOL-1811
     def test_prerequisite_course_save_successfully(self):
         """
          Scenario: Selecting course from Pre-Requisite course drop down save the selected course as pre-requisite

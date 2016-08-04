@@ -39,7 +39,7 @@ from commerce.models import CommerceConfiguration
 from commerce.tests import TEST_PAYMENT_DATA, TEST_API_URL, TEST_API_SIGNING_KEY, TEST_PUBLIC_URL_ROOT
 from embargo.test_utils import restrict_course
 from openedx.core.djangoapps.user_api.accounts.api import get_account_settings
-from openedx.core.djangoapps.theming.test_util import with_comprehensive_theme
+from openedx.core.djangoapps.theming.tests.test_util import with_comprehensive_theme
 from shoppingcart.models import Order, CertificateItem
 from student.tests.factories import UserFactory, CourseEnrollmentFactory
 from student.models import CourseEnrollment
@@ -83,7 +83,7 @@ class StartView(TestCase):
         Test the case where the user has no pending `PhotoVerificationAttempts`,
         but is just starting their first.
         """
-        user = UserFactory.create(username="rusty", password="test")
+        UserFactory.create(username="rusty", password="test")
         self.client.login(username="rusty", password="test")
 
     def must_be_logged_in(self):
@@ -104,9 +104,11 @@ class TestPayAndVerifyView(UrlResetMixin, ModuleStoreTestCase, XssTestMixin):
     YESTERDAY = NOW - timedelta(days=1)
     TOMORROW = NOW + timedelta(days=1)
 
+    URLCONF_MODULES = ['embargo']
+
     @mock.patch.dict(settings.FEATURES, {'EMBARGO': True})
     def setUp(self):
-        super(TestPayAndVerifyView, self).setUp('embargo')
+        super(TestPayAndVerifyView, self).setUp()
         self.user = UserFactory.create(username=self.USERNAME, password=self.PASSWORD)
         result = self.client.login(username=self.USERNAME, password=self.PASSWORD)
         self.assertTrue(result, msg="Could not log in")
@@ -1625,7 +1627,7 @@ class TestSubmitPhotosForVerification(TestCase):
         """
         request = RequestFactory().get('/url')
         request.user = self.user
-        account_settings = get_account_settings(request)
+        account_settings = get_account_settings(request)[0]
         self.assertEqual(account_settings['name'], full_name)
 
     def _get_post_data(self):

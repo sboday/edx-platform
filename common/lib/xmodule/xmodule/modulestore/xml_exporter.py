@@ -41,7 +41,6 @@ def _export_drafts(modulestore, course_key, export_fs, xml_centric_course_key):
         # Check to see if the returned draft modules have changes w.r.t. the published module.
         # Only modules with changes will be exported into the /drafts directory.
         draft_modules = [module for module in draft_modules if modulestore.has_changes(module)]
-
         if draft_modules:
             draft_course_dir = export_fs.makeopendir(DRAFT_DIR)
 
@@ -85,9 +84,12 @@ def _export_drafts(modulestore, course_key, export_fs, xml_centric_course_key):
                     continue
 
                 logging.debug('parent_loc = %s', draft_node.parent_location)
-
                 draft_node.module.xml_attributes['parent_url'] = draft_node.parent_url
                 parent = modulestore.get_item(draft_node.parent_location)
+
+                # Don't try to export orphaned items
+                if draft_node.module.location not in parent.children:
+                    continue
                 index = parent.children.index(draft_node.module.location)
                 draft_node.module.xml_attributes['index_in_children_list'] = str(index)
 
@@ -279,9 +281,7 @@ class CourseExportManager(ExportManager):
             policy = {'course/' + courselike.location.name: own_metadata(courselike)}
             course_policy.write(dumps(policy, cls=EdxJSONEncoder, sort_keys=True, indent=4))
 
-        # xml backed courses don't support drafts!
-        if courselike.runtime.modulestore.get_modulestore_type() != ModuleStoreEnum.Type.xml:
-            _export_drafts(self.modulestore, self.courselike_key, export_fs, xml_centric_courselike_key)
+        _export_drafts(self.modulestore, self.courselike_key, export_fs, xml_centric_courselike_key)
 
 
 class LibraryExportManager(ExportManager):

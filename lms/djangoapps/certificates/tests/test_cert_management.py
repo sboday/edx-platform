@@ -1,6 +1,5 @@
 """Tests for the resubmit_error_certificates management command. """
 import ddt
-from contextlib import contextmanager
 from django.core.management.base import CommandError
 from nose.plugins.attrib import attr
 from django.test.utils import override_settings
@@ -12,8 +11,9 @@ from opaque_keys.edx.locator import CourseLocator
 from badges.events.course_complete import get_completion_badge
 from badges.models import BadgeAssertion
 from badges.tests.factories import BadgeAssertionFactory, CourseCompleteImageConfigurationFactory
+from lms.djangoapps.grades.tests.utils import mock_passing_grade
 from xmodule.modulestore.tests.django_utils import ModuleStoreTestCase
-from xmodule.modulestore.tests.factories import CourseFactory, check_mongo_calls
+from xmodule.modulestore.tests.factories import CourseFactory, check_mongo_calls, ItemFactory
 from student.tests.factories import UserFactory, CourseEnrollmentFactory
 from certificates.management.commands import resubmit_error_certificates, regenerate_user, ungenerated_certs
 from certificates.models import GeneratedCertificate, CertificateStatuses
@@ -33,6 +33,9 @@ class CertificateManagementTest(ModuleStoreTestCase):
             CourseFactory.create()
             for __ in range(3)
         ]
+        for course in self.courses:
+            chapter = ItemFactory.create(parent_location=course.location)
+            ItemFactory.create(parent_location=chapter.location, category='sequential', graded=True)
         CourseCompleteImageConfigurationFactory.create()
 
     def _create_cert(self, course_key, user, status, mode=CourseMode.HONOR):
@@ -103,7 +106,6 @@ class ResubmitErrorCertificatesTest(CertificateManagementTest):
         CertificateStatuses.downloadable,
         CertificateStatuses.generating,
         CertificateStatuses.notpassing,
-        CertificateStatuses.regenerating,
         CertificateStatuses.restricted,
         CertificateStatuses.unavailable,
     )
@@ -245,7 +247,7 @@ class UngenerateCertificatesTest(CertificateManagementTest):
         mock_send_to_queue.return_value = (0, "Successfully queued")
         key = self.course.location.course_key
         self._create_cert(key, self.user, CertificateStatuses.unavailable)
-        with self._mock_passing_grade():
+        with mock_passing_grade():
             self._run_command(
                 course=unicode(key), noop=False, insecure=True, force=False
             )
@@ -255,11 +257,3 @@ class UngenerateCertificatesTest(CertificateManagementTest):
             course_id=key
         )
         self.assertEqual(certificate.status, CertificateStatuses.generating)
-
-    @contextmanager
-    def _mock_passing_grade(self):
-        """Mock the grading function to always return a passing grade. """
-        symbol = 'courseware.grades.grade'
-        with patch(symbol) as mock_grade:
-            mock_grade.return_value = {'grade': 'Pass', 'percent': 0.75}
-            yield

@@ -111,8 +111,10 @@ class CcxRestApiTest(CcxTestCase, APITestCase):
         token_resp = self.client.post('/oauth2/access_token/', data=token_data)
         self.assertEqual(token_resp.status_code, status.HTTP_200_OK)
         token_resp_json = json.loads(token_resp.content)
-        self.assertIn('access_token', token_resp_json)
-        return 'Bearer {0}'.format(token_resp_json.get('access_token'))
+        return '{token_type} {token}'.format(
+            token_type=token_resp_json['token_type'],
+            token=token_resp_json['access_token']
+        )
 
     def expect_error(self, http_code, error_code_str, resp_obj):
         """
@@ -659,10 +661,6 @@ class CcxDetailTest(CcxRestApiTest):
     """
     Test for the CCX REST APIs
     """
-    @classmethod
-    def setUpClass(cls):
-        super(CcxDetailTest, cls).setUpClass()
-
     def setUp(self):
         """
         Set up tests
@@ -874,7 +872,7 @@ class CcxDetailTest(CcxRestApiTest):
         )
         self.assertEqual(resp.data.get('coach_email'), self.ccx.coach.email)  # pylint: disable=no-member
         self.assertEqual(resp.data.get('master_course_id'), unicode(self.ccx.course_id))  # pylint: disable=no-member
-        self.assertEqual(resp.data.get('course_modules'), self.master_course_chapters)  # pylint: disable=no-member
+        self.assertItemsEqual(resp.data.get('course_modules'), self.master_course_chapters)  # pylint: disable=no-member
 
     def test_delete_detail(self):
         """
@@ -1041,19 +1039,19 @@ class CcxDetailTest(CcxRestApiTest):
         resp = self.client.patch(self.detail_url, data, format='json', HTTP_AUTHORIZATION=self.auth)
         self.assertEqual(resp.status_code, status.HTTP_204_NO_CONTENT)
         ccx_from_db = CustomCourseForEdX.objects.get(id=self.ccx.id)
-        self.assertEqual(ccx_from_db.structure, data['course_modules'])
+        self.assertItemsEqual(ccx_from_db.structure, data['course_modules'])
 
         data = {'course_modules': []}
         resp = self.client.patch(self.detail_url, data, format='json', HTTP_AUTHORIZATION=self.auth)
         self.assertEqual(resp.status_code, status.HTTP_204_NO_CONTENT)
         ccx_from_db = CustomCourseForEdX.objects.get(id=self.ccx.id)
-        self.assertEqual(ccx_from_db.structure, [])
+        self.assertItemsEqual(ccx_from_db.structure, [])
 
         data = {'course_modules': self.master_course_chapters}
         resp = self.client.patch(self.detail_url, data, format='json', HTTP_AUTHORIZATION=self.auth)
         self.assertEqual(resp.status_code, status.HTTP_204_NO_CONTENT)
         ccx_from_db = CustomCourseForEdX.objects.get(id=self.ccx.id)
-        self.assertEqual(ccx_from_db.structure, self.master_course_chapters)
+        self.assertItemsEqual(ccx_from_db.structure, self.master_course_chapters)
 
         data = {'course_modules': None}
         resp = self.client.patch(self.detail_url, data, format='json', HTTP_AUTHORIZATION=self.auth)
@@ -1066,4 +1064,4 @@ class CcxDetailTest(CcxRestApiTest):
         resp = self.client.patch(self.detail_url, data, format='json', HTTP_AUTHORIZATION=self.auth)
         self.assertEqual(resp.status_code, status.HTTP_204_NO_CONTENT)
         ccx_from_db = CustomCourseForEdX.objects.get(id=self.ccx.id)
-        self.assertEqual(ccx_from_db.structure, chapters)
+        self.assertItemsEqual(ccx_from_db.structure, chapters)

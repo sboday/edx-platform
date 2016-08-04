@@ -1,7 +1,12 @@
 define([
-    'jquery', 'underscore', 'common/js/spec_helpers/ajax_helpers', 'js/edxnotes/views/search_box',
-    'js/edxnotes/collections/notes', 'js/spec/edxnotes/custom_matchers', 'js/spec/edxnotes/helpers', 'jasmine-jquery'
-], function($, _, AjaxHelpers, SearchBoxView, NotesCollection, customMatchers, Helpers) {
+    'jquery',
+    'underscore',
+    'edx-ui-toolkit/js/utils/spec-helpers/ajax-helpers',
+    'edx-ui-toolkit/js/utils/html-utils',
+    'js/edxnotes/views/search_box',
+    'js/edxnotes/collections/notes',
+    'js/spec/edxnotes/helpers'
+], function($, _, AjaxHelpers, HtmlUtils, SearchBoxView, NotesCollection, Helpers) {
     'use strict';
     describe('EdxNotes SearchBoxView', function() {
         var getSearchBox, submitForm, assertBoxIsEnabled, assertBoxIsDisabled, searchResponse;
@@ -47,7 +52,6 @@ define([
         };
 
         beforeEach(function () {
-            customMatchers(this);
             loadFixtures('js/fixtures/edxnotes/edxnotes.html');
             spyOn(Logger, 'log');
             this.searchBox = getSearchBox();
@@ -160,7 +164,7 @@ define([
             expect(requests).toHaveLength(0);
             assertBoxIsEnabled(this.searchBox);
             expect(this.searchBox.options.error).toHaveBeenCalledWith(
-                'Please enter a term in the <a href="#search-notes-input"> search field</a>.',
+                HtmlUtils.HTML('Please enter a term in the <a href="#search-notes-input"> search field</a>.'),
                 '   '
             );
         });

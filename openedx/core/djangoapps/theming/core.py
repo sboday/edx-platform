@@ -1,32 +1,29 @@
 """
 Core logic for Comprehensive Theming.
 """
-import os.path
-from path import Path as path
 from django.conf import settings
 
-from .helpers import (
-    get_project_root_name,
-)
+from .helpers import get_themes
+
+from logging import getLogger
+logger = getLogger(__name__)  # pylint: disable=invalid-name
 
 
-def enable_comprehensive_theming(themes_dir):
+def enable_theming():
     """
-    Add directories to relevant paths for comprehensive theming.
-    :param themes_dir: path to base theme directory
+    Add directories and relevant paths to settings for comprehensive theming.
     """
-    if isinstance(themes_dir, basestring):
-        themes_dir = path(themes_dir)
+    # Deprecated Warnings
+    if hasattr(settings, "COMPREHENSIVE_THEME_DIR"):
+        logger.warning(
+            "\033[93m \nDeprecated: "
+            "\n\tCOMPREHENSIVE_THEME_DIR setting has been deprecated in favor of COMPREHENSIVE_THEME_DIRS.\033[00m"
+        )
 
-    if themes_dir.isdir():
-        settings.DEFAULT_TEMPLATE_ENGINE['DIRS'].insert(0, themes_dir)
-        settings.MAKO_TEMPLATES['main'].insert(0, themes_dir)
-
-    for theme_dir in os.listdir(themes_dir):
-        staticfiles_dir = os.path.join(themes_dir, theme_dir, get_project_root_name(), "static")
-        if staticfiles_dir.isdir():
-            settings.STATICFILES_DIRS = settings.STATICFILES_DIRS + [staticfiles_dir]
-
-        locale_dir = os.path.join(themes_dir, theme_dir, get_project_root_name(), "conf", "locale")
+    for theme in get_themes():
+        locale_dir = theme.path / "conf" / "locale"
         if locale_dir.isdir():
             settings.LOCALE_PATHS = (locale_dir, ) + settings.LOCALE_PATHS
+
+        if theme.themes_base_dir not in settings.MAKO_TEMPLATES['main']:
+            settings.MAKO_TEMPLATES['main'].insert(0, theme.themes_base_dir)

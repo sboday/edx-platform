@@ -1,7 +1,7 @@
 /*global define */
 define([
         'jquery',
-        'common/js/spec_helpers/ajax_helpers',
+        'edx-ui-toolkit/js/utils/spec-helpers/ajax-helpers',
         'js/certificates/models/certificate_invalidation',
         'js/certificates/views/certificate_invalidation_view',
         'js/certificates/collections/certificate_invalidation_collection'
@@ -29,7 +29,7 @@ define([
 
             beforeEach(function() {
 
-                certificate_invalidation = new CertificateInvalidationModel({user: 'test_user'});
+                certificate_invalidation = new CertificateInvalidationModel({user: 'test_user'}, {url: 'test/url/'});
                 certificate_invalidation.set({
                     notes: "Test notes"
                 });
@@ -174,7 +174,9 @@ define([
             it("verifies view is rendered on add/remove to collection", function() {
                 var user = 'test3',
                     notes = 'test3 notes',
-                    model = new CertificateInvalidationModel({user: user, notes: notes});
+                    model = new CertificateInvalidationModel(
+                        {user: user, notes: notes}, {url: certificate_invalidation_url}
+                    );
 
                 // Add another model in collection and verify it is rendered
                 view.collection.add(model);

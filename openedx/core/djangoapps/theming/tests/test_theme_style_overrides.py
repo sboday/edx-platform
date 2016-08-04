@@ -4,12 +4,12 @@
 import unittest
 
 from django.conf import settings
-from django.test import TestCase, override_settings
+from django.core.urlresolvers import reverse
+from django.test import TestCase
 from django.contrib import staticfiles
 
-from paver.easy import call_task
-
-from openedx.core.djangoapps.theming.test_util import with_comprehensive_theme
+from openedx.core.djangoapps.theming.tests.test_util import with_comprehensive_theme
+from student.tests.factories import UserFactory
 
 
 @unittest.skipUnless(settings.ROOT_URLCONF == 'lms.urls', 'Test only valid in lms')
@@ -23,22 +23,16 @@ class TestComprehensiveThemeLMS(TestCase):
         Clear static file finders cache and register cleanup methods.
         """
         super(TestComprehensiveThemeLMS, self).setUp()
+        self.user = UserFactory()
 
         # Clear the internal staticfiles caches, to get test isolation.
         staticfiles.finders.get_finder.cache_clear()
 
-    @classmethod
-    def setUpClass(cls):
-        """
-        Enable Comprehensive theme and compile sass files.
-        """
-        # Apply Comprehensive theme and compile sass assets.
-        compile_sass('lms')
+    def _login(self):
+        """ Log into LMS. """
+        self.client.login(username=self.user.username, password='test')
 
-        super(TestComprehensiveThemeLMS, cls).setUpClass()
-
-    @override_settings(COMPREHENSIVE_THEME_DIR=settings.TEST_THEME.dirname())
-    @with_comprehensive_theme(settings.TEST_THEME.basename())
+    @with_comprehensive_theme("test-theme")
     def test_footer(self):
         """
         Test that theme footer is used instead of default footer.
@@ -48,29 +42,28 @@ class TestComprehensiveThemeLMS(TestCase):
         # This string comes from header.html of test-theme
         self.assertContains(resp, "This is a footer for test-theme.")
 
-    @override_settings(COMPREHENSIVE_THEME_DIR=settings.TEST_THEME.dirname())
-    @with_comprehensive_theme(settings.TEST_THEME.basename())
+    @with_comprehensive_theme("edx.org")
+    def test_account_settings_hide_nav(self):
+        """
+        Test that theme header doesn't show marketing site links for Account Settings page.
+        """
+        self._login()
+
+        account_settings_url = reverse('account_settings')
+        response = self.client.get(account_settings_url)
+
+        # Verify that the header navigation links are hidden for the edx.org version
+        self.assertNotContains(response, "How it Works")
+        self.assertNotContains(response, "Find courses")
+        self.assertNotContains(response, "Schools & Partners")
+
+    @with_comprehensive_theme("test-theme")
     def test_logo_image(self):
         """
         Test that theme logo is used instead of default logo.
         """
         result = staticfiles.finders.find('test-theme/images/logo.png')
         self.assertEqual(result, settings.TEST_THEME / 'lms/static/images/logo.png')
-
-    @override_settings(COMPREHENSIVE_THEME_DIR=settings.TEST_THEME.dirname())
-    @with_comprehensive_theme(settings.TEST_THEME.basename())
-    def test_css_files(self):
-        """
-        Test that theme sass files are used instead of default sass files.
-        """
-        result = staticfiles.finders.find('test-theme/css/lms-main-v1.css')
-        self.assertEqual(result, settings.TEST_THEME / "lms/static/css/lms-main-v1.css")
-
-        lms_main_css = ""
-        with open(result) as css_file:
-            lms_main_css += css_file.read()
-
-        self.assertIn("background:#00fa00", lms_main_css)
 
 
 @unittest.skipUnless(settings.ROOT_URLCONF == 'cms.urls', 'Test only valid in cms')
@@ -88,18 +81,7 @@ class TestComprehensiveThemeCMS(TestCase):
         # Clear the internal staticfiles caches, to get test isolation.
         staticfiles.finders.get_finder.cache_clear()
 
-    @classmethod
-    def setUpClass(cls):
-        """
-        Enable Comprehensive theme and compile sass files.
-        """
-        # Apply Comprehensive theme and compile sass assets.
-        compile_sass('cms')
-
-        super(TestComprehensiveThemeCMS, cls).setUpClass()
-
-    @override_settings(COMPREHENSIVE_THEME_DIR=settings.TEST_THEME.dirname())
-    @with_comprehensive_theme(settings.TEST_THEME.basename())
+    @with_comprehensive_theme("test-theme")
     def test_template_override(self):
         """
         Test that theme templates are used instead of default templates.
@@ -108,21 +90,6 @@ class TestComprehensiveThemeCMS(TestCase):
         self.assertEqual(resp.status_code, 200)
         # This string comes from login.html of test-theme
         self.assertContains(resp, "Login Page override for test-theme.")
-
-    @override_settings(COMPREHENSIVE_THEME_DIR=settings.TEST_THEME.dirname())
-    @with_comprehensive_theme(settings.TEST_THEME.basename())
-    def test_css_files(self):
-        """
-        Test that theme sass files are used instead of default sass files.
-        """
-        result = staticfiles.finders.find('test-theme/css/studio-main-v1.css')
-        self.assertEqual(result, settings.TEST_THEME / "cms/static/css/studio-main-v1.css")
-
-        cms_main_css = ""
-        with open(result) as css_file:
-            cms_main_css += css_file.read()
-
-        self.assertIn("background:#00fa00", cms_main_css)
 
 
 @unittest.skipUnless(settings.ROOT_URLCONF == 'lms.urls', 'Test only valid in lms')
@@ -140,35 +107,12 @@ class TestComprehensiveThemeDisabledLMS(TestCase):
         # Clear the internal staticfiles caches, to get test isolation.
         staticfiles.finders.get_finder.cache_clear()
 
-    @classmethod
-    def setUpClass(cls):
-        """
-        Compile sass files.
-        """
-        # compile LMS SASS
-        compile_sass('lms')
-
-        super(TestComprehensiveThemeDisabledLMS, cls).setUpClass()
-
     def test_logo(self):
         """
         Test that default logo is picked in case of no comprehensive theme.
         """
         result = staticfiles.finders.find('images/logo.png')
         self.assertEqual(result, settings.REPO_ROOT / 'lms/static/images/logo.png')
-
-    def test_css(self):
-        """
-        Test that default css files served without comprehensive themes applied.
-        """
-        result = staticfiles.finders.find('css/lms-main-v1.css')
-        self.assertEqual(result, settings.REPO_ROOT / "lms/static/css/lms-main-v1.css")
-
-        lms_main_css = ""
-        with open(result) as css_file:
-            lms_main_css += css_file.read()
-
-        self.assertNotIn("background:#00fa00", lms_main_css)
 
 
 @unittest.skipUnless(settings.ROOT_URLCONF == 'cms.urls', 'Test only valid in cms')
@@ -186,16 +130,6 @@ class TestComprehensiveThemeDisabledCMS(TestCase):
         # Clear the internal staticfiles caches, to get test isolation.
         staticfiles.finders.get_finder.cache_clear()
 
-    @classmethod
-    def setUpClass(cls):
-        """
-        Enable Comprehensive theme and compile sass files.
-        """
-        # Apply Comprehensive theme and compile sass assets.
-        compile_sass('cms')
-
-        super(TestComprehensiveThemeDisabledCMS, cls).setUpClass()
-
     def test_template_override(self):
         """
         Test that defaults templates are used when no theme is applied.
@@ -204,32 +138,56 @@ class TestComprehensiveThemeDisabledCMS(TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertNotContains(resp, "Login Page override for test-theme.")
 
-    def test_css_files(self):
-        """
-        Test that default css files served without comprehensive themes applied..
-        """
-        result = staticfiles.finders.find('css/studio-main-v1.css')
-        self.assertEqual(result, settings.REPO_ROOT / "cms/static/css/studio-main-v1.css")
 
-        cms_main_css = ""
-        with open(result) as css_file:
-            cms_main_css += css_file.read()
-
-        self.assertNotIn("background:#00fa00", cms_main_css)
-
-
-def compile_sass(system):
+@unittest.skipUnless(settings.ROOT_URLCONF == 'lms.urls', 'Test only valid in lms')
+class TestStanfordTheme(TestCase):
     """
-    Process xmodule assets and compile sass files for the given system.
-
-    :param system - 'lms' or 'cms', specified the system to compile sass for.
+    Test html, sass and static file overrides for stanford theme.
+    These tests are added to ensure expected behavior after USE_CUSTOM_THEME is removed and
+    a new theme 'stanford-style' is added instead.
     """
-    # Compile system sass files
-    call_task(
-        'pavelib.assets.update_assets',
-        args=(
-            system,
-            "--themes_dir={}".format(settings.TEST_THEME.dirname()),
-            "--themes={}".format(settings.TEST_THEME.basename()),
-            "--settings=test"),
-    )
+
+    def setUp(self):
+        """
+        Clear static file finders cache and register cleanup methods.
+        """
+        super(TestStanfordTheme, self).setUp()
+
+        # Clear the internal staticfiles caches, to get test isolation.
+        staticfiles.finders.get_finder.cache_clear()
+
+    @with_comprehensive_theme("stanford-style")
+    def test_footer(self):
+        """
+        Test stanford theme footer.
+        """
+        resp = self.client.get('/')
+        self.assertEqual(resp.status_code, 200)
+        # This string comes from header.html of test-theme
+        self.assertContains(resp, "footer overrides for stanford theme go here")
+
+    @with_comprehensive_theme("stanford-style")
+    def test_logo_image(self):
+        """
+        Test custom logo.
+        """
+        result = staticfiles.finders.find('stanford-style/images/logo.png')
+        self.assertEqual(result, settings.REPO_ROOT / 'themes/stanford-style/lms/static/images/logo.png')
+
+    @with_comprehensive_theme("stanford-style")
+    def test_favicon_image(self):
+        """
+        Test correct favicon for custom theme.
+        """
+        result = staticfiles.finders.find('stanford-style/images/favicon.ico')
+        self.assertEqual(result, settings.REPO_ROOT / 'themes/stanford-style/lms/static/images/favicon.ico')
+
+    @with_comprehensive_theme("stanford-style")
+    def test_index_page(self):
+        """
+        Test custom theme overrides for index page.
+        """
+        resp = self.client.get('/')
+        self.assertEqual(resp.status_code, 200)
+        # This string comes from header.html of test-theme
+        self.assertContains(resp, "Free courses from <strong>Stanford</strong>")

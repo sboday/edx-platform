@@ -11,6 +11,7 @@ from django.test.utils import override_settings
 
 from courseware.tests.helpers import LoginEnrollmentTestCase
 from courseware.tests.factories import GlobalStaffFactory
+from milestones.tests.utils import MilestonesTestCaseMixin
 from student.tests.factories import UserFactory
 from xmodule.modulestore.tests.django_utils import SharedModuleStoreTestCase
 from xmodule.modulestore.tests.factories import CourseFactory, ItemFactory
@@ -18,7 +19,7 @@ from xmodule.modulestore.django import modulestore
 
 
 @attr('shard_1')
-class TestNavigation(SharedModuleStoreTestCase, LoginEnrollmentTestCase):
+class TestNavigation(SharedModuleStoreTestCase, LoginEnrollmentTestCase, MilestonesTestCaseMixin):
     """
     Check that navigation state is saved properly.
     """
@@ -44,7 +45,7 @@ class TestNavigation(SharedModuleStoreTestCase, LoginEnrollmentTestCase):
         cls.section9 = ItemFactory.create(parent=cls.chapter9,
                                           display_name='factory_section')
         cls.unit0 = ItemFactory.create(parent=cls.section0,
-                                       display_name='New Unit')
+                                       display_name='New Unit 0')
 
         cls.chapterchrome = ItemFactory.create(parent=cls.course,
                                                display_name='Chrome')
@@ -119,6 +120,7 @@ class TestNavigation(SharedModuleStoreTestCase, LoginEnrollmentTestCase):
                 'section': displayname,
             }))
             self.assertEquals('course-tabs' in response.content, tabs)
+            self.assertEquals('course-navigation' in response.content, accordion)
 
         self.assertTabInactive('progress', response)
         self.assertTabActive('courseware', response)
@@ -165,7 +167,6 @@ class TestNavigation(SharedModuleStoreTestCase, LoginEnrollmentTestCase):
 
         resp = self.client.get(reverse('courseware',
                                kwargs={'course_id': self.course.id.to_deprecated_string()}))
-
         self.assertRedirects(resp, reverse(
             'courseware_section', kwargs={'course_id': self.course.id.to_deprecated_string(),
                                           'chapter': 'Overview',
@@ -174,30 +175,26 @@ class TestNavigation(SharedModuleStoreTestCase, LoginEnrollmentTestCase):
     def test_redirects_second_time(self):
         """
         Verify the accordion remembers we've already visited the Welcome section
-        and redirects correpondingly.
+        and redirects correspondingly.
         """
         email, password = self.STUDENT_INFO[0]
         self.login(email, password)
         self.enroll(self.course, True)
         self.enroll(self.test_course, True)
 
-        self.client.get(reverse('courseware_section', kwargs={
-            'course_id': self.course.id.to_deprecated_string(),
-            'chapter': 'Overview',
-            'section': 'Welcome',
-        }))
-
-        resp = self.client.get(reverse('courseware',
-                               kwargs={'course_id': self.course.id.to_deprecated_string()}))
-
-        redirect_url = reverse(
-            'courseware_chapter',
+        section_url = reverse(
+            'courseware_section',
             kwargs={
                 'course_id': self.course.id.to_deprecated_string(),
-                'chapter': 'Overview'
-            }
+                'chapter': 'Overview',
+                'section': 'Welcome',
+            },
         )
-        self.assertRedirects(resp, redirect_url)
+        self.client.get(section_url)
+        resp = self.client.get(
+            reverse('courseware', kwargs={'course_id': self.course.id.to_deprecated_string()}),
+        )
+        self.assertRedirects(resp, section_url)
 
     def test_accordion_state(self):
         """
@@ -209,15 +206,15 @@ class TestNavigation(SharedModuleStoreTestCase, LoginEnrollmentTestCase):
         self.enroll(self.test_course, True)
 
         # Now we directly navigate to a section in a chapter other than 'Overview'.
-        url = reverse(
+        section_url = reverse(
             'courseware_section',
             kwargs={
                 'course_id': self.course.id.to_deprecated_string(),
                 'chapter': 'factory_chapter',
-                'section': 'factory_section'
+                'section': 'factory_section',
             }
         )
-        self.assert_request_status_code(200, url)
+        self.assert_request_status_code(200, section_url)
 
         # And now hitting the courseware tab should redirect to 'factory_chapter'
         url = reverse(
@@ -225,15 +222,7 @@ class TestNavigation(SharedModuleStoreTestCase, LoginEnrollmentTestCase):
             kwargs={'course_id': self.course.id.to_deprecated_string()}
         )
         resp = self.client.get(url)
-
-        redirect_url = reverse(
-            'courseware_chapter',
-            kwargs={
-                'course_id': self.course.id.to_deprecated_string(),
-                'chapter': 'factory_chapter',
-            }
-        )
-        self.assertRedirects(resp, redirect_url)
+        self.assertRedirects(resp, section_url)
 
     def test_incomplete_course(self):
         email = self.staff_user.email
@@ -247,7 +236,8 @@ class TestNavigation(SharedModuleStoreTestCase, LoginEnrollmentTestCase):
             'courseware',
             kwargs={'course_id': test_course_id}
         )
-        self.assert_request_status_code(200, url)
+        response = self.assert_request_status_code(200, url)
+        self.assertIn("No content has been added to this course", response.content)
 
         section = ItemFactory.create(
             parent_location=self.test_course.location,
@@ -257,21 +247,25 @@ class TestNavigation(SharedModuleStoreTestCase, LoginEnrollmentTestCase):
             'courseware',
             kwargs={'course_id': test_course_id}
         )
-        self.assert_request_status_code(200, url)
+        response = self.assert_request_status_code(200, url)
+        self.assertNotIn("No content has been added to this course", response.content)
+        self.assertIn("New Section", response.content)
 
         subsection = ItemFactory.create(
             parent_location=section.location,
-            display_name='New Subsection'
+            display_name='New Subsection',
         )
         url = reverse(
             'courseware',
             kwargs={'course_id': test_course_id}
         )
-        self.assert_request_status_code(200, url)
+        response = self.assert_request_status_code(200, url)
+        self.assertIn("New Subsection", response.content)
+        self.assertNotIn("sequence-nav", response.content)
 
         ItemFactory.create(
             parent_location=subsection.location,
-            display_name='New Unit'
+            display_name='New Unit',
         )
         url = reverse(
             'courseware',

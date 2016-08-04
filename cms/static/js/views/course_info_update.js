@@ -10,8 +10,8 @@ define(["js/views/validation", "codemirror", "js/models/course_update",
         // collection is CourseUpdateCollection
         events: {
             "click .new-update-button" : "onNew",
-            "click #course-update-view .save-button" : "onSave",
-            "click #course-update-view .cancel-button" : "onCancel",
+            "click .save-button" : "onSave",
+            "click .cancel-button" : "onCancel",
             "click .post-actions > .edit-button" : "onEdit",
             "click .post-actions > .delete-button" : "onDelete"
         },
@@ -71,7 +71,7 @@ define(["js/views/validation", "codemirror", "js/models/course_update",
         },
 
         handleValidationError : function(model, error) {
-            var ele = this.$el.find('#course-update-list li[name=\"'+model.cid+'\"');
+            var ele = this.$el.find('#course-update-list li[name=\"'+model.cid+'\"]');
             $(ele).find('.message-error').remove();
             for (var field in error) {
                 if (error.hasOwnProperty(field)) {
@@ -86,7 +86,7 @@ define(["js/views/validation", "codemirror", "js/models/course_update",
 
         validateModel: function(model) {
             if (model.isValid()) {
-                var ele = this.$el.find('#course-update-list li[name=\"' + model.cid + '\"');
+                var ele = this.$el.find('#course-update-list li[name=\"' + model.cid + '\"]');
                 $(ele).find('.message-error').remove();
                 $(ele).find('.save-button').removeClass('is-disabled');
             }

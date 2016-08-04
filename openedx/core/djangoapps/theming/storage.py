@@ -15,10 +15,11 @@ from django.utils.six.moves.urllib.parse import (  # pylint: disable=no-name-in-
 from pipeline.storage import PipelineMixin
 
 from openedx.core.djangoapps.theming.helpers import (
-    get_base_theme_dir,
+    get_theme_base_dir,
     get_project_root_name,
-    get_current_site_theme_dir,
+    get_current_theme,
     get_themes,
+    is_comprehensive_theming_enabled,
 )
 
 
@@ -56,11 +57,11 @@ class ThemeStorage(StaticFilesStorage):
             is provided by red-theme otherwise '/static/images/logo.png'
         """
         prefix = ''
-        theme_dir = get_current_site_theme_dir()
+        theme = get_current_theme()
 
         # get theme prefix from site address if if asset is accessed via a url
-        if theme_dir:
-            prefix = theme_dir
+        if theme:
+            prefix = theme.theme_dir_name
 
         # get theme prefix from storage class, if asset is accessed during collectstatic run
         elif self.prefix:
@@ -82,9 +83,12 @@ class ThemeStorage(StaticFilesStorage):
         Returns:
             True if given asset override is provided by the given theme otherwise returns False
         """
+        if not is_comprehensive_theming_enabled():
+            return False
+
         # in debug mode check static asset from within the project directory
         if settings.DEBUG:
-            themes_location = get_base_theme_dir()
+            themes_location = get_theme_base_dir(theme, suppress_error=True)
             # Nothing can be themed if we don't have a theme location or required params.
             if not all((themes_location, theme, name)):
                 return False
@@ -103,7 +107,7 @@ class ThemeStorage(StaticFilesStorage):
             return self.exists(os.path.join(theme, name))
 
 
-class ComprehensiveThemingCachedFilesMixin(CachedFilesMixin):
+class ThemeCachedFilesMixin(CachedFilesMixin):
     """
     Comprehensive theme aware CachedFilesMixin.
     Main purpose of subclassing CachedFilesMixin is to override the following methods.
@@ -120,7 +124,7 @@ class ComprehensiveThemingCachedFilesMixin(CachedFilesMixin):
         exists or not, if it exists we pass the same name up in the MRO chain for further processing and if it does not
         exists we strip theme name and pass the new asset name to the MRO chain for further processing.
 
-        When called during server run, we get the theme dir for the current site using `get_current_site_theme_dir` and
+        When called during server run, we get the theme dir for the current site using `get_current_theme` and
         make sure to prefix theme dir to the asset name. This is done to ensure the usage of correct hash in file name.
         e.g. if our red-theme overrides 'images/logo.png' and we do not prefix theme dir to the asset name, the hash for
         '{platform-dir}/lms/static/images/logo.png' would be used instead of
@@ -142,12 +146,12 @@ class ComprehensiveThemingCachedFilesMixin(CachedFilesMixin):
         """
         Returns themed url for the given asset.
         """
-        theme_dir = get_current_site_theme_dir()
-        if theme_dir and theme_dir not in name:
+        theme = get_current_theme()
+        if theme and theme.theme_dir_name not in name:
             # during server run, append theme name to the asset name if it is not already there
             # this is ensure that correct hash is created and default asset is not always
             # used to create hash of themed assets.
-            name = os.path.join(theme_dir, name)
+            name = os.path.join(theme.theme_dir_name, name)
         parsed_name = urlsplit(unquote(name))
         clean_name = parsed_name.path.strip()
         asset_name = name
@@ -155,10 +159,10 @@ class ComprehensiveThemingCachedFilesMixin(CachedFilesMixin):
             # if themed asset does not exists then use default asset
             theme = name.split("/", 1)[0]
             # verify that themed asset was accessed
-            if theme in [theme.theme_dir for theme in get_themes()]:
+            if theme in [theme.theme_dir_name for theme in get_themes()]:
                 asset_name = "/".join(name.split("/")[1:])
 
-        return super(ComprehensiveThemingCachedFilesMixin, self).url(asset_name, force)
+        return super(ThemeCachedFilesMixin, self).url(asset_name, force)
 
     def url_converter(self, name, template=None):
         """
@@ -248,8 +252,8 @@ class ThemePipelineMixin(PipelineMixin):
         themes = get_themes()
 
         for theme in themes:
-            css_packages = self.get_themed_packages(theme.theme_dir, settings.PIPELINE_CSS)
-            js_packages = self.get_themed_packages(theme.theme_dir, settings.PIPELINE_JS)
+            css_packages = self.get_themed_packages(theme.theme_dir_name, settings.PIPELINE_CSS)
+            js_packages = self.get_themed_packages(theme.theme_dir_name, settings.PIPELINE_JS)
 
             from pipeline.packager import Packager
             packager = Packager(storage=self, css_packages=css_packages, js_packages=js_packages)

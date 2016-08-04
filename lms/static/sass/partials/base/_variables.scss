@@ -138,7 +138,7 @@ $yellow-u1: desaturate($yellow,15%);
 $yellow-u2: desaturate($yellow,30%);
 $yellow-u3: desaturate($yellow,45%);
 
-$blue: rgb(0, 120, 176);
+$blue: rgb(0, 121, 188);
 $blue-l1: tint($blue,20%);
 $blue-l2: tint($blue,40%);
 $blue-l3: tint($blue,60%);
@@ -158,6 +158,17 @@ $blue-t0: rgba($blue, 0.125);
 $blue-t1: rgba($blue, 0.25);
 $blue-t2: rgba($blue, 0.50);
 $blue-t3: rgba($blue, 0.75);
+
+$uxpl-blue-base: rgb(0, 117, 180); // wcag2a compliant
+$uxpl-blue-hover-active: rgb(41, 145, 195); // wcag2a compliant
+
+$uxpl-green-base: rgb(0, 129, 0); // wcag2a compliant
+$uxpl-green-hover-active: rgb(0, 155, 0); // wcag2a compliant
+
+$uxpl-pink-base: rgb(194, 56, 125); // wcag2a compliant
+$uxpl-pink-hover-active: lighten($uxpl-pink-base, 7%); // wcag2a compliant
+
+$uxpl-grayscale-x-back: rgb(245, 245, 245); // UXPL grayscale, x-back
 
 $orange: rgb(237, 189, 60);
 $orange-l1: tint($orange,20%);
@@ -201,7 +212,7 @@ $shadow-d2: rgba($black, 0.6) !default;
 // system feedback-based colors
 $error-color: rgb(253, 87, 87) !default;
 $warning-color: rgb(181,42,103) !default;
-$confirm-color: rgb(0, 136, 1) !default;
+$confirm-color: rgb(0, 132, 1) !default;
 $active-color: $blue !default;
 $highlight-color: rgb(255,255,0) !default;
 $alert-color: rgb(212, 64, 64) !default;
@@ -213,6 +224,7 @@ $dark-gray1: rgb(74,74,74);
 $light-gray1: rgb(242,242,242);
 $light-gray2: rgb(171,171,171);
 $light-gray3: rgb(249,249,249);
+$light-gray4: rgb(252,252,252);
 $dark-gray2: rgb(151,151,151);
 $blue1: rgb(74,144,226);
 $blue2: rgb(0,161,229);
@@ -304,7 +316,7 @@ $audit-color-lvl2: tint($audit-color-lvl1, 33%);
 $credit-color-base: rgb(244,195,0); // accessible with black text
 
 // edx-specific: Studio/Staff actions
-$staff-color: $pink;
+$staff-color: $uxpl-pink-base;
 
 
 // ----------------------------
@@ -422,17 +434,17 @@ $action-secondary-disabled-bg: $m-gray-d3 !default;
 $action-secondary-disabled-fg: $white !default;
 
 // actions - misc
-$link-color: $blue !default;
-$link-color-d1: $blue !default;
-$link-hover: $blue-l1 !default; // from our Pattern Library http://ux.edx.org/elements/colors/
+$link-color: $uxpl-blue-base !default;
+$link-color-d1: $link-color !default;
+$link-hover: $uxpl-blue-hover-active !default; // from our Pattern Library http://ux.edx.org/elements/colors/
 $site-status-color: $pink !default;
-$button-color: $blue !default;
+$button-color: $uxpl-blue-base !default;
 $button-archive-color: rgb(238,238,238) !default; // #eeeeee
 
 // larger, random elements
 $dark-trans-bg: rgba(0, 0, 0, .75);
 
-$body-bg: rgb(250,250,250) !default;
+$body-bg: $uxpl-grayscale-x-back !default;
 
 $container-bg: $white !default;
 
@@ -461,7 +473,7 @@ $courseware-footer-margin: 0px !default;
 $courseware-border-bottom-color: rgb(68,162,222) !default;
 $courseware-button-border-color: rgb(230,230,230) !default;
 $courseware-hover-color: rgb(51,52,53) !default;
-$courseware-navigation-color: $blue !default;
+$courseware-navigation-color: $uxpl-blue-base !default;
 
 // homepage, onboarding, and course discovery
 $homepage__header--gradient__color--alpha: lighten($gray, 15%) !default;
@@ -488,8 +500,7 @@ $dashboard-course-cover-border: rgb(221, 221, 221) !default;
 
 // course elements
 $content-wrapper-bg: $white !default;
-$course-bg-color: #f2f2f2 !default;
-$course-bg-image: url('#{$static-path}/images/bg-texture.png') !default;
+$course-bg-color: $uxpl-grayscale-x-back !default;
 $account-content-wrapper-bg: shade($body-bg, 2%) !default;
 $course-profile-bg: rgb(245,245,245) !default;
 $course-header-bg: rgba(255,255,255, 0.93) !default;
@@ -518,7 +529,6 @@ $dark-gray: rgb(51, 51, 51) !default;
 $border-color: rgb(200, 200, 200) !default;
 $sidebar-color: rgb(246, 246, 246) !default;
 $outer-border-color: $gray-l3;
-$light-gray: rgb(221,221,221) !default;
 
 // used by descriptor css
 $lightGrey: rgb(237,241,245) !default;

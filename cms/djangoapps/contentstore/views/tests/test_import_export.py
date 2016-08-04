@@ -335,7 +335,7 @@ class ImportTestCase(CourseTestCase):
                 args = {"name": tarpath, "course-data": [tar]}
                 resp = self.client.post(self.url, args)
             self.assertEquals(resp.status_code, 400)
-            self.assertTrue("SuspiciousFileOperation" in resp.content)
+            self.assertIn("SuspiciousFileOperation", resp.content)
 
         try_tar(self._fifo_tar())
         try_tar(self._symlink_tar())
@@ -510,6 +510,7 @@ class ImportTestCase(CourseTestCase):
 
 
 @override_settings(CONTENTSTORE=TEST_DATA_CONTENTSTORE)
+@ddt.ddt
 class ExportTestCase(CourseTestCase):
     """
     Tests for export_handler.
@@ -629,6 +630,17 @@ class ExportTestCase(CourseTestCase):
         )
 
         self.test_export_targz_urlparam()
+
+    @ddt.data(
+        '/export/non.1/existence_1/Run_1',  # For mongo
+        '/export/course-v1:non1+existence1+Run1',  # For split
+    )
+    def test_export_course_doest_not_exist(self, url):
+        """
+        Export failure if course is not exist
+        """
+        resp = self.client.get_html(url)
+        self.assertEquals(resp.status_code, 404)
 
 
 @override_settings(CONTENTSTORE=TEST_DATA_CONTENTSTORE)

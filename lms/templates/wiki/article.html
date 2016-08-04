@@ -7,13 +7,12 @@
 {% block wiki_breadcrumbs %}
 {% include "wiki/includes/breadcrumbs.html" %}
 {% endblock %}
-{% block nav_skip %}#main-article{% endblock %}
 
 {% block wiki_contents %}
 
   <div class="article-wrapper">
 
-    <article class="main-article" id="main-article" tabindex="-1">
+    <article class="main-article" id="main-article">
         {% if selected_tab != "edit" %}
           <h1>{{ article.current_revision.title }}</h1>
 

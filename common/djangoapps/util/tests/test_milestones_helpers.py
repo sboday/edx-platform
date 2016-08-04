@@ -18,11 +18,13 @@ class MilestonesHelpersTestCase(ModuleStoreTestCase):
     Main test suite for Milestones API client library
     """
 
+    CREATE_USER = False
+
     def setUp(self):
         """
         Test case scaffolding
         """
-        super(MilestonesHelpersTestCase, self).setUp(create_user=False)
+        super(MilestonesHelpersTestCase, self).setUp()
         self.course = CourseFactory.create(
             metadata={
                 'entrance_exam_enabled': True,
@@ -106,6 +108,11 @@ class MilestonesHelpersTestCase(ModuleStoreTestCase):
 
     def test_add_user_milestone_returns_none_when_app_disabled(self):
         response = milestones_helpers.add_user_milestone(self.user, self.milestone)
+        self.assertIsNone(response)
+
+    def test_get_service_returns_none_when_app_disabled(self):
+        """MilestonesService is None when app disabled"""
+        response = milestones_helpers.get_service()
         self.assertIsNone(response)
 
     @patch.dict('django.conf.settings.FEATURES', {'MILESTONES_APP': True})

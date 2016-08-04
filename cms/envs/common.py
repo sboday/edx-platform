@@ -47,7 +47,7 @@ import lms.envs.common
 from lms.envs.common import (
     USE_TZ, TECH_SUPPORT_EMAIL, PLATFORM_NAME, BUGS_EMAIL, DOC_STORE_CONFIG, DATA_DIR, ALL_LANGUAGES, WIKI_ENABLED,
     update_module_store_settings, ASSET_IGNORE_REGEX, COPYRIGHT_YEAR,
-    PARENTAL_CONSENT_AGE_LIMIT, COMPREHENSIVE_THEME_DIR, REGISTRATION_EMAIL_PATTERNS_ALLOWED,
+    PARENTAL_CONSENT_AGE_LIMIT, COMPREHENSIVE_THEME_DIRS, REGISTRATION_EMAIL_PATTERNS_ALLOWED,
     # The following PROFILE_IMAGE_* settings are included as they are
     # indirectly accessed through the email opt-in API, which is
     # technically accessible through the CMS via legacy URLs.
@@ -63,11 +63,20 @@ from lms.envs.common import (
 
     STATICI18N_OUTPUT_DIR,
 
-    # Dafault site id to use in case there is no site that matches with the request headers.
-    DEFAULT_SITE_ID,
+    # Theme to use when no site or site theme is defined,
+    DEFAULT_SITE_THEME,
 
-    # Cache time out settings for comprehensive theming system
-    THEME_CACHE_TIMEOUT,
+    # Default site to use if no site exists matching request headers
+    SITE_ID,
+
+    # Enable or disable theming
+    ENABLE_COMPREHENSIVE_THEMING,
+
+    # constants for redirects app
+    REDIRECT_CACHE_TIMEOUT,
+    REDIRECT_CACHE_KEY_PREFIX,
+
+    JWT_AUTH,
 )
 from path import Path as path
 from warnings import simplefilter
@@ -199,6 +208,12 @@ FEATURES = {
 
     # Show Language selector
     'SHOW_LANGUAGE_SELECTOR': False,
+
+    # Temporary feature flag for disabling saving of subsection grades.
+    # There is also an advanced setting in the course module.  The
+    # feature flag and the advanced setting must both be true for
+    # a course to use saved grades.
+    'ENABLE_SUBSECTION_GRADES_SAVED': False,
 }
 
 ENABLE_JASMINE = False
@@ -287,6 +302,7 @@ AUTHENTICATION_BACKENDS = (
 )
 
 LMS_BASE = None
+LMS_ROOT_URL = "http://localhost:8000"
 
 # These are standard regexes for pulling out info like course_ids, usage_ids, etc.
 # They are used so that URLs with deprecated-format strings still work.
@@ -298,7 +314,9 @@ from lms.envs.common import (
 
 # Forwards-compatibility with Django 1.7
 CSRF_COOKIE_AGE = 60 * 60 * 24 * 7 * 52
-
+# It is highly recommended that you override this in any environment accessed by
+# end users
+CSRF_COOKIE_SECURE = False
 
 #################### CAPA External Code Evaluation #############################
 XQUEUE_INTERFACE = {
@@ -316,11 +334,13 @@ simplefilter('ignore')
 ################################# Middleware ###################################
 
 MIDDLEWARE_CLASSES = (
+    'crum.CurrentRequestUserMiddleware',
     'request_cache.middleware.RequestCache',
     'header_control.middleware.HeaderControlMiddleware',
     'django.middleware.cache.UpdateCacheMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.sites.middleware.CurrentSiteMiddleware',
 
     # Instead of SessionMiddleware, we use a more secure version
     # 'django.contrib.sessions.middleware.SessionMiddleware',
@@ -330,9 +350,12 @@ MIDDLEWARE_CLASSES = (
 
     # Instead of AuthenticationMiddleware, we use a cache-backed version
     'cache_toolbox.middleware.CacheBackedAuthenticationMiddleware',
+    # Enable SessionAuthenticationMiddleware in order to invalidate
+    # user sessions after a password change.
+    'django.contrib.auth.middleware.SessionAuthenticationMiddleware',
+
     'student.middleware.UserStandingMiddleware',
     'contentserver.middleware.StaticContentServer',
-    'crum.CurrentRequestUserMiddleware',
 
     'django.contrib.messages.middleware.MessageMiddleware',
     'track.middleware.TrackMiddleware',
@@ -350,17 +373,13 @@ MIDDLEWARE_CLASSES = (
 
     'codejail.django_integration.ConfigureCodeJailMiddleware',
 
-    # django current site middleware with default site
-    'django_sites_extensions.middleware.CurrentSiteWithDefaultMiddleware',
-
-    # needs to run after locale middleware (or anything that modifies the request context)
-    'edxmako.middleware.MakoMiddleware',
-
     # catches any uncaught RateLimitExceptions and returns a 403 instead of a 500
     'ratelimitbackend.middleware.RateLimitMiddleware',
 
     # for expiring inactive sessions
     'session_inactivity_timeout.middleware.SessionInactivityTimeout',
+
+    'openedx.core.djangoapps.theming.middleware.CurrentSiteThemeMiddleware',
 
     # use Django built in clickjacking protection
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -491,7 +510,6 @@ STATIC_ROOT = ENV_ROOT / "staticfiles" / EDX_PLATFORM_REVISION
 STATICFILES_DIRS = [
     COMMON_ROOT / "static",
     PROJECT_ROOT / "static",
-    LMS_ROOT / "static",
 
     # This is how you would use the textbook images locally
     # ("book", ENV_ROOT / "book_images"),
@@ -531,6 +549,7 @@ STATICFILES_FINDERS = [
     'openedx.core.djangoapps.theming.finders.ThemeFilesFinder',
     'django.contrib.staticfiles.finders.FileSystemFinder',
     'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+    'openedx.core.lib.xblock_pipeline.finder.XBlockPipelineFinder',
     'pipeline.finders.PipelineFinder',
 ]
 
@@ -592,12 +611,6 @@ PIPELINE_CSS = {
         ],
         'output_filename': 'css/studio-main-v2-rtl.css',
     },
-    'style-edx-icons': {
-        'source_filenames': [
-            'css/edx-icons.css',
-        ],
-        'output_filename': 'css/edx-icons.css',
-    },
     'style-xmodule-annotations': {
         'source_filenames': [
             'css/vendor/ova/annotator.css',
@@ -624,7 +637,7 @@ PIPELINE_JS = {
         'source_filenames': (
             rooted_glob(COMMON_ROOT / 'static/', 'xmodule/descriptors/js/*.js') +
             rooted_glob(COMMON_ROOT / 'static/', 'xmodule/modules/js/*.js') +
-            rooted_glob(COMMON_ROOT / 'static/', 'coffee/src/discussion/*.js')
+            rooted_glob(COMMON_ROOT / 'static/', 'common/js/discussion/*.js')
         ),
         'output_filename': 'js/cms-modules.js',
         'test_order': 1
@@ -690,8 +703,11 @@ REQUIRE_DEBUG = False
 REQUIRE_EXCLUDE = ("build.txt",)
 
 # The execution environment in which to run r.js: auto, node or rhino.
-# auto will autodetect the environment and make use of node if available and rhino if not.
-# It can also be a path to a custom class that subclasses require.environments.Environment and defines some "args" function that returns a list with the command arguments to execute.
+# auto will autodetect the environment and make use of node if available and
+# rhino if not.
+# It can also be a path to a custom class that subclasses
+# require.environments.Environment and defines some "args" function that
+# returns a list with the command arguments to execute.
 REQUIRE_ENVIRONMENT = "node"
 
 
@@ -785,6 +801,7 @@ INSTALLED_APPS = (
     # Standard apps
     'django.contrib.auth',
     'django.contrib.contenttypes',
+    'django.contrib.redirects',
     'django.contrib.sessions',
     'django.contrib.sites',
     'django.contrib.messages',
@@ -883,6 +900,9 @@ INSTALLED_APPS = (
     # programs support
     'openedx.core.djangoapps.programs',
 
+    # Catalog integration
+    'openedx.core.djangoapps.catalog',
+
     # Self-paced course configuration
     'openedx.core.djangoapps.self_paced',
 
@@ -908,8 +928,11 @@ INSTALLED_APPS = (
     # Static i18n support
     'statici18n',
 
-    # Management commands used for configuration automation
-    'edx_management_commands.management_commands',
+    # Tagging
+    'cms.lib.xblock.tagging',
+
+    # Enables default site and redirects
+    'django_sites_extensions',
 )
 
 
@@ -959,7 +982,7 @@ EVENT_TRACKING_BACKENDS = {
             },
             'processors': [
                 {'ENGINE': 'track.shim.LegacyFieldMappingProcessor'},
-                {'ENGINE': 'track.shim.VideoEventProcessor'}
+                {'ENGINE': 'track.shim.PrefixedEventProcessor'}
             ]
         }
     },
@@ -1109,31 +1132,6 @@ XBLOCK_SETTINGS = {
     }
 }
 
-################################ XBlock Deprecation ################################
-
-# The following settings are used for deprecating XBlocks.
-
-# Adding an XBlock to this list does the following:
-# 1. Shows a warning on the course outline if the XBlock is listed in
-#    "Advanced Module List" in "Advanced Settings" page.
-# 2. List all instances of that XBlock on the top of the course outline page asking
-#    course authors to delete or replace the instances.
-DEPRECATED_BLOCK_TYPES = [
-    'peergrading',
-    'combinedopenended',
-    'graphical_slider_tool',
-    'randomize',
-]
-
-# Adding components in this list will disable the creation of new problems for
-# those advanced components in Studio. Existing problems will work fine
-# and one can edit them in Studio.
-# DEPRECATED. Please use /admin/xblock_django/xblockdisableconfig instead.
-DEPRECATED_ADVANCED_COMPONENT_TYPES = []
-
-# XBlocks can be disabled from rendering in LMS Courseware by adding them to
-# /admin/xblock_django/xblockdisableconfig/.
-
 ################################ Settings for Credit Course Requirements ################################
 # Initial delay used for retrying tasks.
 # Additional retries use longer delays.
@@ -1188,3 +1186,6 @@ USERNAME_PATTERN = r'(?P<username>[\w.@+-]+)'
 
 # Partner support link for CMS footer
 PARTNER_SUPPORT_EMAIL = ''
+
+# Affiliate cookie tracking
+AFFILIATE_COOKIE_NAME = 'affiliate_id'

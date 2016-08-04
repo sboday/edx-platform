@@ -1,6 +1,6 @@
 define([
     'underscore',
-    'common/js/spec_helpers/ajax_helpers',
+    'edx-ui-toolkit/js/utils/spec-helpers/ajax-helpers',
     'support/js/spec_helpers/enrollment_helpers',
     'support/js/views/enrollment'
 ], function (_, AjaxHelpers, EnrollmentHelpers, EnrollmentView) {
@@ -46,7 +46,7 @@ define([
         it('re-renders itself when its collection changes', function () {
             var requests = AjaxHelpers.requests(this);
             enrollmentView = createEnrollmentView().render();
-            spyOn(enrollmentView, 'render').andCallThrough();
+            spyOn(enrollmentView, 'render').and.callThrough();
             AjaxHelpers.respondWithJson(requests, [EnrollmentHelpers.mockEnrollmentData]);
             expect(enrollmentView.render).toHaveBeenCalled();
         });

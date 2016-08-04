@@ -1,13 +1,16 @@
-"""Tests of comprehensive theming."""
+"""
+Test helpers for Comprehensive Theming.
+"""
 import unittest
 from mock import patch
 
-from django.test import TestCase, RequestFactory, override_settings
+from django.test import TestCase, override_settings
 from django.conf import settings
 
-from openedx.core.djangoapps.theming.test_util import with_comprehensive_theme
+from openedx.core.djangoapps.theming.tests.test_util import with_comprehensive_theme
+from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 from openedx.core.djangoapps.theming.helpers import get_template_path_with_theme, strip_site_theme_templates_path, \
-    get_current_site_theme_dir, get_themes, Theme
+    get_themes, Theme, get_theme_base_dir
 
 
 class TestHelpers(TestCase):
@@ -18,24 +21,37 @@ class TestHelpers(TestCase):
         Tests template paths are returned from enabled theme.
         """
         expected_themes = [
-            Theme('red-theme', 'red-theme'),
-            Theme('edge.edx.org', 'edge.edx.org'),
-            Theme('edx.org', 'edx.org'),
-            Theme('stanford-style', 'stanford-style'),
+            Theme('test-theme', 'test-theme', get_theme_base_dir('test-theme')),
+            Theme('red-theme', 'red-theme', get_theme_base_dir('red-theme')),
+            Theme('edge.edx.org', 'edge.edx.org', get_theme_base_dir('edge.edx.org')),
+            Theme('edx.org', 'edx.org', get_theme_base_dir('edx.org')),
+            Theme('stanford-style', 'stanford-style', get_theme_base_dir('stanford-style')),
         ]
         actual_themes = get_themes()
         self.assertItemsEqual(expected_themes, actual_themes)
 
-    @override_settings(COMPREHENSIVE_THEME_DIR=settings.TEST_THEME.dirname())
+    @override_settings(COMPREHENSIVE_THEME_DIRS=[settings.TEST_THEME.dirname()])
     def test_get_themes_2(self):
         """
         Tests template paths are returned from enabled theme.
         """
         expected_themes = [
-            Theme('test-theme', 'test-theme'),
+            Theme('test-theme', 'test-theme', get_theme_base_dir('test-theme')),
         ]
         actual_themes = get_themes()
         self.assertItemsEqual(expected_themes, actual_themes)
+
+    def test_get_value_returns_override(self):
+        """
+        Tests to make sure the get_value() operation returns a combined dictionary consisting
+        of the base container with overridden keys from the site configuration
+        """
+        with patch('openedx.core.djangoapps.site_configuration.helpers.get_value') as mock_get_value:
+            override_key = 'JWT_ISSUER'
+            override_value = 'testing'
+            mock_get_value.return_value = {override_key: override_value}
+            jwt_auth = configuration_helpers.get_value('JWT_AUTH')
+            self.assertEqual(jwt_auth[override_key], override_value)
 
 
 @unittest.skipUnless(settings.ROOT_URLCONF == 'lms.urls', 'Test only valid in lms')
@@ -48,7 +64,7 @@ class TestHelpersLMS(TestCase):
         Tests template paths are returned from enabled theme.
         """
         template_path = get_template_path_with_theme('header.html')
-        self.assertEqual(template_path, '/red-theme/lms/templates/header.html')
+        self.assertEqual(template_path, 'red-theme/lms/templates/header.html')
 
     @with_comprehensive_theme('red-theme')
     def test_get_template_path_with_theme_for_missing_template(self):
@@ -80,20 +96,6 @@ class TestHelpersLMS(TestCase):
         template_path = strip_site_theme_templates_path('/red-theme/lms/templates/header.html')
         self.assertEqual(template_path, '/red-theme/lms/templates/header.html')
 
-    @with_comprehensive_theme('red-theme')
-    def test_get_current_site_theme_dir(self):
-        """
-        Tests current site theme name.
-        """
-        factory = RequestFactory()
-        with patch(
-            'edxmako.middleware.REQUEST_CONTEXT.request',
-            factory.get('/', SERVER_NAME="red-theme.org"),
-            create=True,
-        ):
-            current_site = get_current_site_theme_dir()
-            self.assertEqual(current_site, 'red-theme')
-
 
 @unittest.skipUnless(settings.ROOT_URLCONF == 'cms.urls', 'Test only valid in cms')
 class TestHelpersCMS(TestCase):
@@ -105,7 +107,7 @@ class TestHelpersCMS(TestCase):
         Tests template paths are returned from enabled theme.
         """
         template_path = get_template_path_with_theme('login.html')
-        self.assertEqual(template_path, '/red-theme/cms/templates/login.html')
+        self.assertEqual(template_path, 'red-theme/cms/templates/login.html')
 
     @with_comprehensive_theme('red-theme')
     def test_get_template_path_with_theme_for_missing_template(self):
@@ -136,17 +138,3 @@ class TestHelpersCMS(TestCase):
         """
         template_path = strip_site_theme_templates_path('/red-theme/cms/templates/login.html')
         self.assertEqual(template_path, '/red-theme/cms/templates/login.html')
-
-    @with_comprehensive_theme('red-theme')
-    def test_get_current_site_theme_dir(self):
-        """
-        Tests current site theme name.
-        """
-        factory = RequestFactory()
-        with patch(
-            'edxmako.middleware.REQUEST_CONTEXT.request',
-            factory.get('/', SERVER_NAME="red-theme.org"),
-            create=True,
-        ):
-            current_site = get_current_site_theme_dir()
-            self.assertEqual(current_site, 'red-theme')

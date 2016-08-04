@@ -10,16 +10,17 @@ Test utilities for mobile API tests:
      MobileCourseAccessTestMixin - tests for APIs with mobile_course_access.
 """
 # pylint: disable=no-member
-import ddt
 from datetime import timedelta
+from django.conf import settings
+
 from django.utils import timezone
+import ddt
 from mock import patch
-
 from django.core.urlresolvers import reverse
-
 from rest_framework.test import APITestCase
-
 from opaque_keys.edx.keys import CourseKey
+from xmodule.modulestore.tests.django_utils import ModuleStoreTestCase
+from xmodule.modulestore.tests.factories import CourseFactory
 
 from courseware.access_response import (
     MobileAvailabilityError,
@@ -29,10 +30,7 @@ from courseware.access_response import (
 from courseware.tests.factories import UserFactory
 from student import auth
 from student.models import CourseEnrollment
-from xmodule.modulestore.tests.django_utils import ModuleStoreTestCase
-from xmodule.modulestore.tests.factories import CourseFactory
-
-from mobile_api.test_milestones import MobileAPIMilestonesMixin
+from mobile_api.tests.test_milestones import MobileAPIMilestonesMixin
 
 
 class MobileAPITestCase(ModuleStoreTestCase, APITestCase):
@@ -156,6 +154,7 @@ class MobileCourseAccessTestMixin(MobileAPIMilestonesMixin):
         """Base implementation of initializing the user for each test."""
         self.login_and_enroll(course_id)
 
+    @patch.dict(settings.FEATURES, {'ENABLE_MKTG_SITE': True})
     def test_success(self):
         self.init_course_access()
 
@@ -169,7 +168,7 @@ class MobileCourseAccessTestMixin(MobileAPIMilestonesMixin):
         response = self.api_response(expected_response_code=None, course_id=non_existent_course_id)
         self.verify_failure(response)  # allow subclasses to override verification
 
-    @patch.dict('django.conf.settings.FEATURES', {'DISABLE_START_DATES': False})
+    @patch.dict('django.conf.settings.FEATURES', {'DISABLE_START_DATES': False, 'ENABLE_MKTG_SITE': True})
     def test_unreleased_course(self):
         # ensure the course always starts in the future
         # pylint: disable=attribute-defined-outside-init
@@ -187,6 +186,7 @@ class MobileCourseAccessTestMixin(MobileAPIMilestonesMixin):
         (None, False)
     )
     @ddt.unpack
+    @patch.dict(settings.FEATURES, {'ENABLE_MKTG_SITE': True})
     def test_non_mobile_available(self, role, should_succeed):
         self.init_course_access()
         # set mobile_available to False for the test course
@@ -205,6 +205,7 @@ class MobileCourseAccessTestMixin(MobileAPIMilestonesMixin):
         (None, False)
     )
     @ddt.unpack
+    @patch.dict(settings.FEATURES, {'ENABLE_MKTG_SITE': True})
     def test_visible_to_staff_only_course(self, role, should_succeed):
         self.init_course_access()
         self.course.visible_to_staff_only = True

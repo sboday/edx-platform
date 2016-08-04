@@ -52,6 +52,7 @@ define([
         },
 
         initialize: function (options) {
+            this.options = _.extend({}, options);
             _.bindAll(this, 'onBeforeSearchStart', 'onSearch', 'onSearchError');
             TabView.prototype.initialize.call(this, options);
             this.searchResults = null;
@@ -141,7 +142,7 @@ define([
         },
 
         onSearchError: function (errorMessage) {
-            this.showErrorMessage(errorMessage);
+            this.showErrorMessageHtml(errorMessage);
             if (this.searchDeferred) {
                 this.searchDeferred.reject();
             }

@@ -17,6 +17,9 @@ from watchdog.events import PatternMatchingEventHandler
 
 from .utils.envs import Env
 from .utils.cmd import cmd, django_cmd
+from .utils.timer import timed
+
+from openedx.core.djangoapps.theming.paver_helpers import get_theme_paths
 
 # setup baseline paths
 
@@ -36,17 +39,22 @@ SYSTEMS = {
 COMMON_LOOKUP_PATHS = [
     path("common/static"),
     path("common/static/sass"),
-    path("node_modules"),
-    path("node_modules/edx-pattern-library/node_modules"),
-
+    path('node_modules'),
+    path('node_modules/edx-pattern-library/node_modules'),
 ]
 
 # A list of NPM installed libraries that should be copied into the common
 # static directory.
 NPM_INSTALLED_LIBRARIES = [
+    'jquery/dist/jquery.js',
+    'jquery-migrate/dist/jquery-migrate.js',
+    'jquery.scrollto/jquery.scrollTo.js',
     'underscore/underscore.js',
     'underscore.string/dist/underscore.string.js',
-    'picturefill/dist/picturefill.min.js'
+    'picturefill/dist/picturefill.js',
+    'backbone/backbone.js',
+    'edx-ui-toolkit/node_modules/backbone.paginator/lib/backbone.paginator.js',
+    'backbone-validation/dist/backbone-validation-min.js',
 ]
 
 # Directory to install static vendor files
@@ -56,6 +64,9 @@ NPM_VENDOR_DIRECTORY = path("common/static/common/js/vendor")
 SASS_LOOKUP_DEPENDENCIES = {
     'cms': [path('lms') / 'static' / 'sass' / 'partials', ],
 }
+
+# Collectstatic log directory setting
+COLLECTSTATIC_LOG_DIR_ARG = "collect_log_dir"
 
 
 def get_sass_directories(system, theme_dir=None):
@@ -199,7 +210,7 @@ def get_system_sass_dirs(system):
     return dirs
 
 
-def get_watcher_dirs(themes_base_dir=None, themes=None):
+def get_watcher_dirs(theme_dirs=None, themes=None):
     """
     Return sass directories that need to be added to sass watcher.
 
@@ -218,20 +229,21 @@ def get_watcher_dirs(themes_base_dir=None, themes=None):
         ]
 
     Parameters:
-        themes_base_dir (str): base directory that contains all the themes.
+        theme_dirs (list): list of theme base directories.
         themes (list): list containing names of themes
     Returns:
         (list): dirs that need to be added to sass watchers.
     """
     dirs = []
     dirs.extend(COMMON_LOOKUP_PATHS)
-    if themes_base_dir and themes:
+    if theme_dirs and themes:
         # Register sass watchers for all the given themes
-        theme_dirs = [(path(themes_base_dir) / theme) for theme in themes if theme]
-        for theme_dir in theme_dirs:
-            for _dir in get_sass_directories('lms', theme_dir) + get_sass_directories('cms', theme_dir):
+        themes = get_theme_paths(themes=themes, theme_dirs=theme_dirs)
+        for theme in themes:
+            for _dir in get_sass_directories('lms', theme) + get_sass_directories('cms', theme):
                 dirs.append(_dir['sass_source_dir'])
                 dirs.extend(_dir['lookup_paths'])
+
     # Register sass watchers for lms and cms
     for _dir in get_sass_directories('lms') + get_sass_directories('cms') + get_common_sass_directories():
         dirs.append(_dir['sass_source_dir'])
@@ -376,6 +388,7 @@ def coffeescript_files():
 
 @task
 @no_help
+@timed
 def compile_coffeescript(*files):
     """
     Compile CoffeeScript to JavaScript.
@@ -391,11 +404,12 @@ def compile_coffeescript(*files):
 @no_help
 @cmdopts([
     ('system=', 's', 'The system to compile sass for (defaults to all)'),
-    ('themes_dir=', '-td', 'The themes dir containing all themes (defaults to None)'),
+    ('theme-dirs=', '-td', 'Theme dirs containing all themes (defaults to None)'),
     ('themes=', '-t', 'The theme to compile sass for (defaults to None)'),
     ('debug', 'd', 'Debug mode'),
     ('force', '', 'Force full compilation'),
 ])
+@timed
 def compile_sass(options):
     """
     Compile Sass to CSS. If command is called without any arguments, it will
@@ -413,44 +427,52 @@ def compile_sass(options):
         only compile lms, cms sass for the open source theme. None of the theme's sass will be compiled.
 
     Command:
-        paver compile_sass --themes_dir=/edx/app/edxapp/edx-platform/themes --themes=red-theme
+        paver compile_sass --theme-dirs /edx/app/edxapp/edx-platform/themes --themes=red-theme
     Description:
         compile sass files for both lms and cms for 'red-theme' present in '/edx/app/edxapp/edx-platform/themes'
 
     Command:
-        paver compile_sass --themes_dir=/edx/app/edxapp/edx-platform/themes --themes=red-theme,stanford-style
+        paver compile_sass --theme-dirs=/edx/app/edxapp/edx-platform/themes --themes red-theme stanford-style
     Description:
         compile sass files for both lms and cms for 'red-theme' and 'stanford-style' present in
         '/edx/app/edxapp/edx-platform/themes'.
 
     Command:
-        paver compile_sass --system=cms --themes_dir=/edx/app/edxapp/edx-platform/themes
-            --themes=red-theme,stanford-style
+        paver compile_sass --system=cms
+            --theme-dirs /edx/app/edxapp/edx-platform/themes /edx/app/edxapp/edx-platform/common/test/
+            --themes red-theme stanford-style test-theme
     Description:
-        compile sass files for cms only for 'red-theme' and 'stanford-style' present in
-        '/edx/app/edxapp/edx-platform/themes'.
+        compile sass files for cms only for 'red-theme', 'stanford-style' and 'test-theme' present in
+        '/edx/app/edxapp/edx-platform/themes' and '/edx/app/edxapp/edx-platform/common/test/'.
 
     """
     debug = options.get('debug')
     force = options.get('force')
     systems = getattr(options, 'system', ALL_SYSTEMS)
-    themes = getattr(options, 'themes', None)
-    themes_dir = getattr(options, 'themes_dir', None)
+    themes = getattr(options, 'themes', [])
+    theme_dirs = getattr(options, 'theme-dirs', [])
 
-    if not themes_dir and themes:
+    if not theme_dirs and themes:
         # We can not compile a theme sass without knowing the directory that contains the theme.
-        raise ValueError('themes_dir must be provided for compiling theme sass.')
-    else:
-        theme_base_dir = path(themes_dir)
+        raise ValueError('theme-dirs must be provided for compiling theme sass.')
 
     if isinstance(systems, basestring):
         systems = systems.split(',')
     else:
         systems = systems if isinstance(systems, list) else [systems]
+
     if isinstance(themes, basestring):
         themes = themes.split(',')
     else:
         themes = themes if isinstance(themes, list) else [themes]
+
+    if isinstance(theme_dirs, basestring):
+        theme_dirs = theme_dirs.split(',')
+    else:
+        theme_dirs = theme_dirs if isinstance(theme_dirs, list) else [theme_dirs]
+
+    if themes and theme_dirs:
+        themes = get_theme_paths(themes=themes, theme_dirs=theme_dirs)
 
     # Compile sass for OpenEdx theme after comprehensive themes
     if None not in themes:
@@ -475,7 +497,7 @@ def compile_sass(options):
             # Compile sass files
             is_successful = _compile_sass(
                 system=system,
-                theme=theme_base_dir / theme if theme_base_dir and theme else None,
+                theme=path(theme) if theme else None,
                 debug=debug,
                 force=force,
                 timing_info=timing_info
@@ -496,9 +518,9 @@ def compile_sass(options):
             print(">> {} -> {} in {}s".format(sass_dir, css_dir, duration))
 
     if compilation_results['success']:
-        print("\033[92m\n\nSuccessful compilations:\n--- " + "\n--- ".join(compilation_results['success']) + "\033[00m")
+        print("\033[92m\nSuccessful compilations:\n--- " + "\n--- ".join(compilation_results['success']) + "\n\033[00m")
     if compilation_results['failure']:
-        print("\033[91m\n\nFailed compilations:\n--- " + "\n--- ".join(compilation_results['failure']) + "\033[00m")
+        print("\033[91m\nFailed compilations:\n--- " + "\n--- ".join(compilation_results['failure']) + "\n\033[00m")
 
 
 def _compile_sass(system, theme, debug, force, timing_info):
@@ -569,23 +591,6 @@ def _compile_sass(system, theme, debug, force, timing_info):
     return True
 
 
-def compile_templated_sass(systems, settings):
-    """
-    Render Mako templates for Sass files.
-    `systems` is a list of systems (e.g. 'lms' or 'studio' or both)
-    `settings` is the Django settings module to use.
-    """
-    for system in systems:
-        if system == "studio":
-            system = "cms"
-        sh(django_cmd(
-            system, settings, 'preprocess_assets',
-            '{system}/static/sass/*.scss'.format(system=system),
-            '{system}/static/themed_sass'.format(system=system)
-        ))
-        print("\t\tFinished preprocessing {} assets.".format(system))
-
-
 def process_npm_assets():
     """
     Process vendor libraries installed via NPM.
@@ -626,23 +631,73 @@ def restart_django_servers():
     ))
 
 
-def collect_assets(systems, settings):
+def collect_assets(systems, settings, **kwargs):
     """
     Collect static assets, including Django pipeline processing.
     `systems` is a list of systems (e.g. 'lms' or 'studio' or both)
     `settings` is the Django settings module to use.
+    `**kwargs` include arguments for using a log directory for collectstatic output. Defaults to /dev/null.
     """
+
     for sys in systems:
-        sh(django_cmd(sys, settings, "collectstatic --noinput > /dev/null"))
+        collectstatic_stdout_str = _collect_assets_cmd(sys, **kwargs)
+        sh(django_cmd(sys, settings, "collectstatic --noinput {logfile_str}".format(
+            logfile_str=collectstatic_stdout_str
+        )))
         print("\t\tFinished collecting {} assets.".format(sys))
+
+
+def _collect_assets_cmd(system, **kwargs):
+    """
+    Returns the collecstatic command to be used for the given system
+
+    Unless specified, collectstatic (which can be verbose) pipes to /dev/null
+    """
+    try:
+        if kwargs[COLLECTSTATIC_LOG_DIR_ARG] is None:
+            collectstatic_stdout_str = ""
+        else:
+            collectstatic_stdout_str = "> {output_dir}/{sys}-collectstatic.log".format(
+                output_dir=kwargs[COLLECTSTATIC_LOG_DIR_ARG],
+                sys=system
+            )
+    except KeyError:
+        collectstatic_stdout_str = "> /dev/null"
+
+    return collectstatic_stdout_str
+
+
+def execute_compile_sass(args):
+    """
+    Construct django management command compile_sass (defined in theming app) and execute it.
+    Args:
+        args: command line argument passed via update_assets command
+    """
+    for sys in args.system:
+        options = ""
+        options += " --theme-dirs " + " ".join(args.theme_dirs) if args.theme_dirs else ""
+        options += " --themes " + " ".join(args.themes) if args.themes else ""
+        options += " --debug" if args.debug else ""
+
+        sh(
+            django_cmd(
+                sys,
+                args.settings,
+                "compile_sass {system} {options}".format(
+                    system='cms' if sys == 'studio' else sys,
+                    options=options,
+                ),
+            ),
+        )
 
 
 @task
 @cmdopts([
     ('background', 'b', 'Background mode'),
-    ('themes_dir=', '-td', 'The themes dir containing all themes (defaults to None)'),
+    ('theme-dirs=', '-td', 'The themes dir containing all themes (defaults to None)'),
     ('themes=', '-t', 'The themes to add sass watchers for (defaults to None)'),
 ])
+@timed
 def watch_assets(options):
     """
     Watch for changes to asset files, and regenerate js/css
@@ -652,19 +707,20 @@ def watch_assets(options):
         return
 
     themes = getattr(options, 'themes', None)
-    themes_dir = getattr(options, 'themes_dir', None)
-    if not themes_dir and themes:
+    theme_dirs = getattr(options, 'theme-dirs', [])
+
+    if not theme_dirs and themes:
         # We can not add theme sass watchers without knowing the directory that contains the themes.
-        raise ValueError('themes_dir must be provided for compiling theme sass.')
+        raise ValueError('theme-dirs must be provided for watching theme sass.')
     else:
-        theme_base_dir = path(themes_dir)
+        theme_dirs = [path(_dir) for _dir in theme_dirs]
 
     if isinstance(themes, basestring):
         themes = themes.split(',')
     else:
         themes = themes if isinstance(themes, list) else [themes]
 
-    sass_directories = get_watcher_dirs(theme_base_dir, themes)
+    sass_directories = get_watcher_dirs(theme_dirs, themes)
     observer = PollingObserver()
 
     CoffeeScriptWatcher().register(observer)
@@ -690,6 +746,7 @@ def watch_assets(options):
     'pavelib.prereqs.install_node_prereqs',
 )
 @consume_args
+@timed
 def update_assets(args):
     """
     Compile CoffeeScript and Sass, then collect static assets.
@@ -716,30 +773,38 @@ def update_assets(args):
         help="Watch files for changes",
     )
     parser.add_argument(
-        '--themes_dir', type=str, default=None,
-        help="base directory where themes are placed",
+        '--theme-dirs', dest='theme_dirs', type=str, nargs='+', default=None,
+        help="base directories where themes are placed",
     )
     parser.add_argument(
-        '--themes', type=str, nargs='*', default=None,
+        '--themes', type=str, nargs='+', default=None,
         help="list of themes to compile sass for",
     )
+    parser.add_argument(
+        '--collect-log', dest=COLLECTSTATIC_LOG_DIR_ARG, default=None,
+        help="When running collectstatic, direct output to specified log directory",
+    )
     args = parser.parse_args(args)
+    collect_log_args = {}
 
-    compile_templated_sass(args.system, args.settings)
     process_xmodule_assets()
     process_npm_assets()
     compile_coffeescript()
 
-    call_task(
-        'pavelib.assets.compile_sass',
-        options={'system': args.system, 'debug': args.debug, 'themes_dir': args.themes_dir, 'themes': args.themes},
-    )
+    # Compile sass for themes and system
+    execute_compile_sass(args)
 
     if args.collect:
-        collect_assets(args.system, args.settings)
+        if args.debug:
+            collect_log_args.update({COLLECTSTATIC_LOG_DIR_ARG: None})
+
+        if args.collect_log_dir:
+            collect_log_args.update({COLLECTSTATIC_LOG_DIR_ARG: args.collect_log_dir})
+
+        collect_assets(args.system, args.settings, **collect_log_args)
 
     if args.watch:
         call_task(
             'pavelib.assets.watch_assets',
-            options={'background': not args.debug, 'themes_dir': args.themes_dir, 'themes': args.themes},
+            options={'background': not args.debug, 'theme-dirs': args.theme_dirs, 'themes': args.themes},
         )

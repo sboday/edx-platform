@@ -208,6 +208,24 @@ To run a single test format the command like this.
 
     paver test_system -t lms/djangoapps/courseware/tests/tests.py:ActivateLoginTest.test_activate_login
 
+The ``lms`` suite of tests runs with randomized order, by default.
+You can override these by using ``--no-randomize`` to disable randomization.
+
+You can also enable test concurrency with the ``--processes=N`` flag (where ``N``
+is the number of processes to run tests with, and ``-1`` means one process per
+available core). Note, however, that when running concurrently, breakpoints may
+not work correctly, and you will not be able to run single test methods (only
+single test classes).
+
+For example:
+
+::
+    # This will run all tests in the order that they appear in their files, serially
+    paver test_system -s lms --no-randomize --processes=0
+
+    # This will run using only 2 processes for tests
+    paver test_system -s lms --processes=2
+
 To re-run all failing django tests from lms or cms, use the
 ``--failed``,\ ``-f`` flag (see note at end of section).
 
@@ -341,16 +359,15 @@ To run JavaScript tests in a browser, run these commands.
 To debug these tests on devstack in a local browser:
 
  * first run the appropriate test_js_dev command from above which will open a browser using XQuartz
- * open the same URL in your browser but change the IP address to 192.168.33.10, e.g.
-    http://192.168.33.10:TEST_PORT/suite/cms
+ * open http://192.168.33.10:9876/debug.html in your host system's browser of choice
  * this will run all the tests and show you the results including details of any failures
  * you can click on an individually failing test and/or suite to re-run it by itself
  * you can now use the browser's developer tools to debug as you would any other JavaScript code
 
 Note: the port is also output to the console that you ran the tests from if you find that easier.
 
-These paver commands call through to a custom test runner. For more
-info, see `js-test-tool <https://github.com/edx/js-test-tool>`__.
+These paver commands call through to Karma. For more
+info, see `karma-runner.github.io <https://karma-runner.github.io/>`__.
 
 Running Bok Choy Acceptance Tests
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -616,6 +633,13 @@ During acceptance test execution, Django log files are written to
 
 **Note**: The acceptance tests can *not* currently run in parallel.
 
+Running Tests on Paver Scripts
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To run tests on the scripts that power the various Paver commands, use the following command::
+
+  nosetests paver
+
 
 Testing internationalization with dummy translations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -778,13 +802,13 @@ To view JavaScript code style quality run this command.
 
 ::
 
-    paver run_jshint
+    paver run_eslint
 
 -  This command also comes with a ``--limit`` switch, this is an example of that switch.
 
 ::
 
-	paver run_jshint --limit=700
+	paver run_eslint --limit=50000
 
 
 
@@ -805,7 +829,7 @@ Two tools are available for evaluating complexity of edx-platform code:
 
 ::
 
-       plato -q -x common/static/js/vendor/ -t common -l .jshintrc -r -d jscomplexity common/static/js/
+       plato -q -x common/static/js/vendor/ -t common -e .eslintrc.json -r -d jscomplexity common/static/js/
 
 
 

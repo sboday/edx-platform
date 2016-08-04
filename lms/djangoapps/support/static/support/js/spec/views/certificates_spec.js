@@ -1,6 +1,6 @@
 define([
     'jquery',
-    'common/js/spec_helpers/ajax_helpers',
+    'edx-ui-toolkit/js/utils/spec-helpers/ajax-helpers',
     'support/js/views/certificates'
 ], function($, AjaxHelpers, CertificatesView) {
     'use strict';
@@ -91,6 +91,7 @@ define([
         };
 
         beforeEach(function () {
+            spyOn(window.history, 'pushState');
             setFixtures('<div class="certificates-content"></div>');
             view = new CertificatesView({
                 el: $('.certificates-content')

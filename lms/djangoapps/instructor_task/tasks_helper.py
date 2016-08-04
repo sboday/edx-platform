@@ -46,7 +46,7 @@ from certificates.models import (
 )
 from certificates.api import generate_user_certificates
 from courseware.courses import get_course_by_id, get_problems_in_section
-from courseware.grades import iterate_grades_for
+from grades.course_grades import iterate_grades_for
 from courseware.models import StudentModule
 from courseware.model_data import DjangoKeyValueStore, FieldDataCache
 from courseware.module_render import get_module_for_descriptor_internal
@@ -649,10 +649,6 @@ def upload_exec_summary_to_store(data_dict, report_name, course_id, generated_at
             timestamp_str=generated_at.strftime("%Y-%m-%d-%H%M")
         ),
         output_buffer,
-        config={
-            'content_type': 'text/html',
-            'content_encoding': None,
-        }
     )
     tracker.emit(REPORT_REQUESTED_EVENT_NAME, {"report_type": report_name})
 
@@ -836,7 +832,7 @@ def _order_problems(blocks):
         an OrderedDict that maps a problem id to its headers in the final report.
     """
     problems = OrderedDict()
-    assignments = dict()
+    assignments = OrderedDict()
     # First, sort out all the blocks into their correct assignments and all the
     # assignments into their correct types.
     for block in blocks:
@@ -937,7 +933,7 @@ def upload_problem_grade_report(_xmodule_instance_args, _entry_id, course_id, _t
     error_rows = [list(header_row.values()) + ['error_msg']]
     current_step = {'step': 'Calculating Grades'}
 
-    for student, gradeset, err_msg in iterate_grades_for(course_id, enrolled_students, keep_raw_scores=True):
+    for student, gradeset, err_msg in iterate_grades_for(course_id, enrolled_students):
         student_fields = [getattr(student, field_name) for field_name in header_row]
         task_progress.attempted += 1
 
@@ -996,7 +992,7 @@ def upload_students_csv(_xmodule_instance_args, _entry_id, course_id, task_input
     task_progress.update_task_state(extra_meta=current_step)
 
     # compute the student features table and format it
-    query_features = task_input.get('features')
+    query_features = task_input
     student_data = enrolled_students_features(course_id, query_features)
     header, rows = format_dictlist(student_data, query_features)
 
@@ -1420,20 +1416,13 @@ def generate_students_certificates(
         )
 
     elif student_set == 'whitelisted_not_generated':
-        # All Whitelisted students
+        # Whitelist students who did not get certificates already.
         students_to_generate_certs_for = students_to_generate_certs_for.filter(
             certificatewhitelist__course_id=course_id,
             certificatewhitelist__whitelist=True
-        )
-
-        # Whitelisted students which got certificates already.
-        certificate_generated_students = GeneratedCertificate.objects.filter(  # pylint: disable=no-member
-            course_id=course_id,
-        )
-        certificate_generated_students_ids = set(certificate_generated_students.values_list('user_id', flat=True))
-
-        students_to_generate_certs_for = students_to_generate_certs_for.exclude(
-            id__in=certificate_generated_students_ids
+        ).exclude(
+            generatedcertificate__course_id=course_id,
+            generatedcertificate__status__in=CertificateStatuses.PASSED_STATUSES
         )
 
     elif student_set == "specific_student":

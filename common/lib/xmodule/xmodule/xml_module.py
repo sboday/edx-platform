@@ -5,6 +5,7 @@ import os
 import sys
 from lxml import etree
 
+from xblock.core import XML_NAMESPACES
 from xblock.fields import Dict, Scope, ScopeIds
 from xblock.runtime import KvsFieldData
 from xmodule.x_module import XModuleDescriptor, DEPRECATION_VSCOMPAT_EVENT
@@ -334,7 +335,7 @@ class XmlParserMixin(object):
 
         """
         # VS[compat] -- just have the url_name lookup, once translation is done
-        url_name = node.get('url_name', node.get('slug'))
+        url_name = cls._get_url_name(node)
         def_id = id_generator.create_definition(node.tag, url_name)
         usage_id = id_generator.create_usage(def_id)
         aside_children = []
@@ -343,8 +344,7 @@ class XmlParserMixin(object):
         if is_pointer_tag(node):
             # new style:
             # read the actual definition file--named using url_name.replace(':','/')
-            filepath = cls._format_filepath(node.tag, name_to_pathname(url_name))
-            definition_xml = cls.load_file(filepath, runtime.resources_fs, def_id)
+            definition_xml, filepath = cls.load_definition_xml(node, runtime, def_id)
             aside_children = runtime.parse_asides(definition_xml, def_id, usage_id, id_generator)
         else:
             filepath = None
@@ -408,6 +408,23 @@ class XmlParserMixin(object):
         return xblock
 
     @classmethod
+    def _get_url_name(cls, node):
+        """
+        Reads url_name attribute from the node
+        """
+        return node.get('url_name', node.get('slug'))
+
+    @classmethod
+    def load_definition_xml(cls, node, runtime, def_id):
+        """
+        Loads definition_xml stored in a dedicated file
+        """
+        url_name = cls._get_url_name(node)
+        filepath = cls._format_filepath(node.tag, name_to_pathname(url_name))
+        definition_xml = cls.load_file(filepath, runtime.resources_fs, def_id)
+        return definition_xml, filepath
+
+    @classmethod
     def _format_filepath(cls, category, name):
         return u'{category}/{name}.{ext}'.format(category=category,
                                                  name=name,
@@ -428,6 +445,12 @@ class XmlParserMixin(object):
         """
         # Get the definition
         xml_object = self.definition_to_xml(self.runtime.export_fs)
+        for aside in self.runtime.get_asides(self):
+            if aside.needs_serialization():
+                aside_node = etree.Element("unknown_root", nsmap=XML_NAMESPACES)
+                aside.add_xml_to_node(aside_node)
+                xml_object.append(aside_node)
+
         self.clean_metadata_from_xml(xml_object)
 
         # Set the tag on both nodes so we get the file path right.
@@ -496,6 +519,8 @@ class XmlDescriptor(XmlParserMixin, XModuleDescriptor):  # pylint: disable=abstr
     """
     Mixin class for standardized parsing of XModule xml.
     """
+    resources_dir = None
+
     @classmethod
     def from_xml(cls, xml_data, system, id_generator):
         """
